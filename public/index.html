@@ -3,165 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strefa Klienta | Premium Gallery</title>
+    <title>Galeria Premium</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        /* --- DESIGN SYSTEM PREMIUM (ZACHOWANY) --- */
-        :root {
-            --bg: #fdfdfd;
-            --surface: #ffffff;
-            --text-main: #1a1a1a;
-            --text-muted: #666;
-            --accent: #c5a059; 
-            --accent-hover: #b08d45;
-            --danger: #e74c3c;
-            --shadow: 0 10px 30px rgba(0,0,0,0.08);
-            --border-radius: 8px;
-        }
-
-        body { font-family: 'Raleway', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 0; overflow-x: hidden; }
-        h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 1px; font-weight: 600; color: #111; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
-        .hidden { display: none !important; }
-        .fade-in { animation: fadeIn 0.5s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        button { 
-            background: #111; color: white; border: none; padding: 14px 28px; 
-            border-radius: 0; cursor: pointer; font-size: 13px; text-transform: uppercase; 
-            letter-spacing: 2px; font-weight: 600; transition: all 0.3s ease;
-        }
-        button:hover { background: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(197, 160, 89, 0.3); }
-        .btn-secondary { background: #f0f0f0; color: #333; }
-        .btn-secondary:hover { background: #e0e0e0; }
-        
-        .card { background: var(--surface); padding: 50px; box-shadow: var(--shadow); border-radius: var(--border-radius); margin-bottom: 2rem; border: 1px solid #f0f0f0; }
-        input { width: 100%; padding: 16px; margin-bottom: 20px; border: 1px solid #e0e0e0; background: #fafafa; font-family: 'Raleway', sans-serif; box-sizing: border-box; transition: border 0.3s; }
-        input:focus { outline: none; border-color: var(--accent); background: white; }
-
-        /* GALERIA */
-        .gallery-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #eee; }
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px; padding: 20px 0; }
-        .photo-card { position: relative; cursor: pointer; aspect-ratio: 2/3; overflow: hidden; background: #eee; }
-        .photo-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; filter: grayscale(20%); }
-        .photo-card:hover img { transform: scale(1.05); filter: grayscale(0%); }
-
-        .heart-icon { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; opacity: 0.7; text-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: all 0.2s; z-index: 2; }
-        .photo-card.selected .heart-icon { color: var(--accent); opacity: 1; transform: scale(1.2); }
-        .photo-card.selected::after { content: ''; position: absolute; inset: 0; border: 4px solid var(--accent); z-index: 1; pointer-events: none; }
-
-        /* LIGHTBOX */
-        #lightbox { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 10, 10, 0.98); z-index: 2000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        #lightbox.active { opacity: 1; pointer-events: all; }
-        #lightbox img { max-width: 90vw; max-height: 85vh; box-shadow: 0 0 50px rgba(0,0,0,0.5); user-select: none; }
-        .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
-        .lb-nav:hover { background: var(--accent); }
-        .lb-prev { left: 30px; } .lb-next { right: 30px; }
-        .lb-close { position: absolute; top: 30px; right: 30px; font-size: 40px; color: #fff; cursor: pointer; }
-        .lb-controls { position: absolute; bottom: 30px; display: flex; gap: 20px; align-items: center; background: rgba(255,255,255,0.1); padding: 10px 30px; border-radius: 30px; backdrop-filter: blur(5px); }
-        .lb-select-btn { background: transparent; border: 2px solid white; color: white; padding: 8px 20px; border-radius: 20px; }
-        .lb-select-btn.active { background: var(--accent); border-color: var(--accent); }
-
-        /* DASHBOARD */
-        .album-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 25px 0; }
-        .album-info h3 { margin: 0 0 5px 0; font-size: 1.2rem; }
-        .album-info p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
-        .email-sender { display: flex; gap: 10px; margin-top: 15px; align-items: center; }
-        .email-sender input { margin: 0; padding: 10px; width: 250px; font-size: 14px; border-radius: 4px; border: 1px solid #ddd; }
-        .email-sender button { padding: 11px 20px; font-size: 12px; background: var(--accent); color: white; }
-        .email-sender button:hover { background: var(--accent-hover); }
-
-        /* Loader */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body oncontextmenu="return false;">
+
+    <div id="toast-container">
+        <div class="toast-icon">✓</div>
+        <div id="toast-text">Powiadomienie</div>
+    </div>
 
     <div id="lightbox">
         <div class="lb-close" onclick="app.closeLightbox()">&times;</div>
         <div class="lb-nav lb-prev" onclick="app.prevPhoto()">&#10094;</div>
         <div class="lb-nav lb-next" onclick="app.nextPhoto()">&#10095;</div>
-        <img id="lightbox-img" src="" oncontextmenu="return false;">
+        <img id="lightbox-img" src="" alt="Podgląd">
         <div class="lb-controls">
-            <span style="color:white; margin-right:15px; font-size:14px;">Użyj strzałek i SPACJI</span>
-            <button id="lb-select-btn" class="lb-select-btn" onclick="app.toggleSelectionFromLightbox()">❤ Wybierz zdjęcie</button>
+            <button id="lb-select-btn" class="lb-select-btn" onclick="app.toggleSelectionFromLightbox()">Wybierz zdjęcie</button>
         </div>
     </div>
 
     <div id="view-login" class="container hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
-        <div class="card" style="width:100%; max-width:400px; text-align:center;">
+        <div style="background:white; padding:50px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.1); text-align:center; max-width:400px; width:100%;">
             <h1>Strefa Fotografa</h1>
-            <p style="color:#888; margin-bottom:30px;">Zaloguj się do panelu zarządzania</p>
+            <p style="color:#888; margin-bottom:30px;">Zaloguj się do panelu</p>
             <form onsubmit="event.preventDefault(); app.login()">
-                <input type="email" id="email" placeholder="Email" required value="admin@example.com">
-                <input type="password" id="password" placeholder="Hasło" required value="admin123">
+                <input type="email" id="email" placeholder="Email" required value="admin@example.com" style="width:100%; padding:15px; margin-bottom:15px; border:1px solid #ddd;">
+                <input type="password" id="password" placeholder="Hasło" required value="admin123" style="width:100%; padding:15px; margin-bottom:20px; border:1px solid #ddd;">
                 <button type="submit" style="width:100%">Wejdź</button>
             </form>
         </div>
     </div>
 
-    <div id="view-dashboard" class="container hidden">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:50px;">
+    <div id="view-dashboard" class="container hidden fade-in">
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
             <div>
                 <h1>Moje Sesje</h1>
-                <p style="color:#666">Zarządzaj albumami i wysyłaj zdjęcia</p>
+                <p>Zarządzaj albumami</p>
             </div>
             <div>
                 <button onclick="router.go('upload')">+ Nowa Sesja</button>
-                <button onclick="app.logout()" class="btn-secondary" style="margin-left:10px">Wyloguj</button>
+                <button onclick="app.logout()" style="background:#eee; color:#333; margin-left:10px;">Wyloguj</button>
             </div>
         </header>
-        <div class="card fade-in">
-            <div id="albums-list">
-                </div>
-        </div>
+        <div id="albums-list"></div>
     </div>
 
-    <div id="view-upload" class="container hidden">
-        <header style="margin-bottom:40px;">
-            <button onclick="router.go('dashboard')" class="btn-secondary">← Wróć do listy</button>
-        </header>
-        <div class="card fade-in" style="max-width:800px; margin:0 auto;">
-            <h2 style="text-align:center; margin-bottom:30px;">Utwórz Nową Galerię</h2>
-            
+    <div id="view-upload" class="container hidden fade-in">
+        <button onclick="router.go('dashboard')" style="background:transparent; color:#333; border:1px solid #ddd; margin-bottom:20px;">← Wróć</button>
+        <div style="background:white; padding:40px; border-radius:10px; max-width:800px; margin:0 auto;">
+            <h2 style="text-align:center; margin-bottom:30px;">Nowa Galeria</h2>
             <form onsubmit="event.preventDefault(); app.createAlbum()">
                 <label>Nazwa Sesji</label>
-                <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required>
+                <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required style="width:100%; padding:15px; margin-bottom:20px; border:1px solid #ddd;">
                 
                 <label>Klient</label>
-                <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
+                <input type="text" id="clientName" placeholder="Imię i Nazwisko" required style="width:100%; padding:15px; margin-bottom:20px; border:1px solid #ddd;">
 
                 <label>Email Klienta (Automatyczna wysyłka)</label>
-                <input type="email" id="clientEmailUpload" placeholder="klient@example.com (opcjonalne)">
-                <p style="font-size: 12px; color: #666; margin-top: -15px; margin-bottom: 20px;">
-                    Jeśli wpiszesz tu email, link do galerii zostanie wysłany automatycznie po wgraniu zdjęć.
-                </p>
-                <div style="border: 2px dashed #ddd; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
-                    <p style="font-size: 1.1rem; color: #555;">Wybierz zdjęcia (JPG)</p>
-                    <input type="file" id="files" multiple accept="image/jpeg" required style="border:none; background:transparent;">
+                <input type="email" id="clientEmailUpload" placeholder="klient@example.com (opcjonalne)" style="width:100%; padding:15px; margin-bottom:5px; border:1px solid #ddd;">
+                <p style="font-size:12px; color:#999; margin-bottom:20px;">Link zostanie wysłany automatycznie po wgraniu zdjęć.</p>
+
+                <div style="border:2px dashed #ddd; padding:40px; text-align:center; margin-bottom:20px;">
+                    <p>Wybierz zdjęcia (JPG)</p>
+                    <input type="file" id="files" multiple accept="image/jpeg" required>
                 </div>
-                <button type="submit" id="uploadBtn" style="width:100%; padding: 20px;">Rozpocznij Upload</button>
+                <button type="submit" id="uploadBtn" style="width:100%">Rozpocznij Upload</button>
             </form>
-            <div id="upload-status" style="margin-top:20px; text-align:center; color: var(--accent); font-weight:bold;"></div>
+            <div id="upload-status" style="margin-top:20px; text-align:center; color:var(--primary); font-weight:bold;"></div>
         </div>
     </div>
 
     <div id="view-gallery" class="hidden">
-        <header class="gallery-header">
-            <div>
-                <h2 id="gallery-title" style="margin:0; font-size:1.5rem;">Galeria</h2>
-                <div style="font-size:0.9rem; color:#777; margin-top:5px;">
-                    Kliknij zdjęcie, aby powiększyć. Użyj <span style="border:1px solid #ccc; padding:0 5px; border-radius:4px;">SPACJI</span> aby wybrać.
-                </div>
+        <div class="hero">
+            <div class="hero-content fade-in">
+                <h1 id="gallery-hero-title">Galeria Zdjęć</h1>
+                <p>Wybierz swoje ulubione ujęcia</p>
             </div>
-            <div style="display:flex; align-items:center; gap:20px;">
-                <span id="selection-count" style="font-weight: 600; color: var(--accent); font-size:1.2rem;">0 wybranych</span>
-                <button onclick="app.saveSelection()" id="saveBtn">Zatwierdź Wybór</button>
+        </div>
+
+        <div class="container" style="margin-top:-60px;">
+            <div class="gallery-container fade-in">
+                <header class="gallery-header">
+                    <div>
+                        <h2 id="gallery-title" style="font-size:1.5rem;">Tytuł Albumu</h2>
+                        <p style="font-size:0.9rem; color:#888;">Kliknij serce, aby wybrać.</p>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <span id="selection-count" style="font-weight:bold; color:var(--accent);">0 wybranych</span>
+                        <button id="saveBtn" onclick="app.saveSelection()">Zatwierdź Wybór</button>
+                    </div>
+                </header>
+                
+                <div id="grid" class="gallery-grid">
+                    </div>
             </div>
-        </header>
-        <div class="container fade-in">
-            <div id="grid" class="gallery-grid"></div>
         </div>
     </div>
 
@@ -171,15 +108,9 @@
         const router = {
             views: ['login', 'dashboard', 'upload', 'gallery'],
             go(viewId) {
-                this.views.forEach(v => {
-                    const el = document.getElementById('view-' + v);
-                    if(el) el.classList.add('hidden');
-                });
-                const active = document.getElementById('view-' + viewId);
-                if(active) {
-                    active.classList.remove('hidden');
-                    active.classList.add('fade-in');
-                }
+                this.views.forEach(v => document.getElementById('view-' + v)?.classList.add('hidden'));
+                document.getElementById('view-' + viewId)?.classList.remove('hidden');
+                window.scrollTo(0,0);
             }
         };
 
@@ -187,12 +118,13 @@
             state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0 },
 
             init() {
+                // Obsługa klawiszy w lightboxie
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
                     if (e.key === 'ArrowLeft') this.prevPhoto();
                     if (e.key === 'ArrowRight') this.nextPhoto();
                     if (e.key === 'Escape') this.closeLightbox();
-                    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
+                    if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
 
                 const path = window.location.pathname;
@@ -202,6 +134,20 @@
                 } else {
                     if (this.state.jwt) this.loadDashboard(); else router.go('login');
                 }
+            },
+
+            // --- FUNKCJA TOAST (ZAMIAST ALERT) ---
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast-container');
+                const text = document.getElementById('toast-text');
+                const icon = toast.querySelector('.toast-icon');
+                
+                text.innerText = message;
+                icon.innerHTML = type === 'success' ? '✓' : '!';
+                icon.style.background = type === 'success' ? 'var(--success)' : 'var(--accent)';
+                
+                toast.classList.add('active');
+                setTimeout(() => { toast.classList.remove('active'); }, 3500);
             },
 
             async login() {
@@ -214,7 +160,7 @@
                     this.state.jwt = data.token;
                     localStorage.setItem('photo_jwt', data.token);
                     this.loadDashboard();
-                } catch (err) { alert('Błąd: ' + err.message); }
+                } catch (err) { alert(err.message); }
             },
 
             logout() { localStorage.removeItem('photo_jwt'); this.state.jwt = null; router.go('login'); },
@@ -225,76 +171,38 @@
                     const res = await fetch(API + '/admin/albums', { headers: { 'Authorization': 'Bearer ' + this.state.jwt } });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
-                    if(albums.length === 0) { container.innerHTML = '<p style="text-align:center; padding:50px;">Brak albumów.</p>'; return; }
+                    
+                    if(albums.length === 0) {
+                        container.innerHTML = '<div style="text-align:center; padding:40px; color:#888;"><p>Brak albumów.</p></div>';
+                        return;
+                    }
 
                     container.innerHTML = albums.map(a => {
                         const link = window.location.origin + '/gallery/' + a.access_token;
                         return `
-                        <div class="album-item">
-                            <div class="album-info">
-                                <h3>${a.title}</h3>
-                                <p>${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
-                                <div class="email-sender">
-                                    <input type="email" id="mail-${a.id}" placeholder="Email klienta...">
-                                    <button onclick="app.sendEmail('${a.id}', '${a.title}', '${link}', this)">Wyślij</button>
-                                </div>
+                        <div style="background:white; padding:20px; margin-bottom:15px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center;">
+                            <div>
+                                <h3 style="margin-bottom:5px;">${a.title}</h3>
+                                <p style="color:#666; font-size:0.9rem;">${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
                             </div>
-                            <div class="album-actions">
-                                <a href="/gallery/${a.access_token}" target="_blank" style="text-decoration:none;"><button>Otwórz</button></a>
+                            <div style="display:flex; gap:10px; margin-top:10px;">
+                                <a href="/gallery/${a.access_token}" target="_blank"><button style="padding:10px 20px; font-size:12px;">Podgląd</button></a>
                             </div>
                         </div>
                     `}).join('');
                 } catch (err) { console.error(err); }
             },
 
-            // --- WYSYŁANIE MAILA Z DASHBOARDU (RĘCZNE) ---
-            async sendEmail(id, title, link, btnElement) {
-                const emailInput = document.getElementById(`mail-${id}`);
-                const email = emailInput.value;
-                if(!email) { alert("Wpisz adres email klienta!"); return; }
-
-                const originalText = btnElement.innerText;
-                btnElement.innerText = "Wysyłanie...";
-                btnElement.disabled = true;
-
-                try {
-                    const res = await fetch(API + '/send-link', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + this.state.jwt 
-                        },
-                        body: JSON.stringify({ clientEmail: email, albumTitle: title, link: link })
-                    });
-                    
-                    const data = await res.json();
-                    if(data.success) {
-                        alert(`Wysłano wiadomość do: ${email}`);
-                        emailInput.value = ''; 
-                    } else {
-                        throw new Error(data.error || 'Błąd wysyłania');
-                    }
-                } catch (err) {
-                    alert('Nie udało się wysłać maila: ' + err.message);
-                } finally {
-                    btnElement.innerText = originalText;
-                    btnElement.disabled = false;
-                }
-            },
-
-            // --- TWORZENIE ALBUMU (Z AUTOMATYCZNĄ WYSYŁKĄ) ---
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
                 const statusDiv = document.getElementById('upload-status');
-                btn.disabled = true; 
-                btn.innerText = "Tworzenie albumu...";
+                btn.disabled = true; btn.innerText = "Przetwarzanie...";
                 
                 try {
                     const title = document.getElementById('albumTitle').value;
                     const clientName = document.getElementById('clientName').value;
-                    const clientEmail = document.getElementById('clientEmailUpload').value; // Pobieramy email
+                    const clientEmail = document.getElementById('clientEmailUpload').value;
 
-                    // 1. Tworzenie albumu w bazie
                     const res1 = await fetch(API + '/albums', { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, 
@@ -302,17 +210,14 @@
                     });
                     const albumData = await res1.json();
                     const albumId = albumData[0].id;
-                    const accessToken = albumData[0].access_token; // Potrzebny do linku
+                    const accessToken = albumData[0].access_token;
 
-                    // 2. Upload zdjęć
                     const files = document.getElementById('files').files;
                     const formData = new FormData();
                     formData.append('albumId', albumId);
                     for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
 
-                    btn.innerText = "Wysyłanie zdjęć (może to chwilę potrwać)...";
-                    statusDiv.innerText = "Proszę czekać, trwa przesyłanie zdjęć...";
-                    
+                    statusDiv.innerText = "Wysyłanie zdjęć (nie zamykaj okna)...";
                     const res2 = await fetch(API + '/upload', { 
                         method: 'POST', 
                         headers: { 'Authorization': 'Bearer ' + this.state.jwt }, 
@@ -320,34 +225,24 @@
                     });
                     
                     if(res2.ok) { 
-                        // 3. AUTOMATYCZNA WYSYŁKA MAILA (jeśli podano email)
                         if (clientEmail) {
-                            statusDiv.innerText = "Zdjęcia wgrane! Wysyłanie maila do klienta...";
+                            statusDiv.innerText = "Wysyłanie maila do klienta...";
                             const link = window.location.origin + '/gallery/' + accessToken;
-                            
                             await fetch(API + '/send-link', {
                                 method: 'POST',
-                                headers: { 
-                                    'Content-Type': 'application/json',
-                                    'Authorization': 'Bearer ' + this.state.jwt 
-                                },
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt },
                                 body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link })
                             });
-                            alert('Sukces! Galeria utworzona i link wysłany do klienta: ' + clientEmail);
+                            this.showToast('Galeria utworzona i wysłana!', 'success');
                         } else {
-                            alert('Sukces! Galeria utworzona (bez wysyłania maila).');
+                            this.showToast('Galeria utworzona!', 'success');
                         }
-                        
                         this.loadDashboard(); 
-                    } else {
-                        throw new Error('Błąd uploadu');
-                    }
+                    } else throw new Error('Błąd uploadu');
                 } catch (err) { 
-                    alert(err.message); 
+                    this.showToast(err.message, 'error');
                 } finally { 
-                    btn.disabled = false; 
-                    btn.innerText = "Rozpocznij Upload"; 
-                    statusDiv.innerText = "";
+                    btn.disabled = false; btn.innerText = "Rozpocznij Upload"; statusDiv.innerText = "";
                 }
             },
 
@@ -358,64 +253,119 @@
                     const res = await fetch(API + '/gallery/' + token);
                     if(!res.ok) throw new Error('Błąd');
                     const data = await res.json();
+                    
+                    // Ustawienie tytułów
                     document.getElementById('gallery-title').innerText = data.album[0].title;
+                    document.getElementById('gallery-hero-title').innerText = data.album[0].title;
+                    
                     this.state.selected = new Set(data.selections);
                     this.state.photos = data.photos;
-                    this.renderGrid(); this.updateCounter();
-                } catch (err) { document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Galeria nie istnieje.</p></div>"; }
+                    this.renderGrid();
+                    this.updateCounter();
+
+                    // Powitanie (Onboarding)
+                    if(!localStorage.getItem('visited_' + token)) {
+                        this.showToast('Witaj! Klikaj serduszka, aby wybrać zdjęcia.', 'success');
+                        localStorage.setItem('visited_' + token, 'true');
+                    }
+
+                } catch (err) { document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; }
             },
 
             renderGrid() {
                 const grid = document.getElementById('grid');
+                if (this.state.photos.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Ta galeria jest pusta.</p>';
+                    return;
+                }
                 grid.innerHTML = this.state.photos.map((p, index) => {
                     const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
-                    return `<div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})"><div class="heart-icon">${isSelected ? '❤' : '♡'}</div><img src="${p.proof_url}" loading="lazy"></div>`;
+                    return `
+                    <div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})">
+                        <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${index})">
+                            ${isSelected ? '❤' : '♡'}
+                        </div>
+                        <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie">
+                    </div>`;
                 }).join('');
+            },
+
+            toggleSelection(index) {
+                const p = this.state.photos[index];
+                if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
+                else {
+                    this.state.selected.add(p.id);
+                    // Mikrointerakcja wibracji (na mobile)
+                    if(navigator.vibrate) navigator.vibrate(50);
+                }
+                this.renderGrid();
+                this.updateCounter();
             },
 
             openLightbox(index) {
                 this.state.currentPhotoIndex = index;
                 const p = this.state.photos[index];
                 const box = document.getElementById('lightbox');
-                const img = document.getElementById('lightbox-img');
-                img.src = p.proof_url;
+                document.getElementById('lightbox-img').src = p.proof_url;
                 box.classList.add('active');
                 this.updateLightboxUI();
             },
             closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
-            nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); else this.openLightbox(0); },
-            prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); else this.openLightbox(this.state.photos.length - 1); },
+            
+            nextPhoto() { 
+                if (this.state.currentPhotoIndex < this.state.photos.length - 1) 
+                    this.openLightbox(this.state.currentPhotoIndex + 1); 
+            },
+            prevPhoto() { 
+                if (this.state.currentPhotoIndex > 0) 
+                    this.openLightbox(this.state.currentPhotoIndex - 1); 
+            },
 
             toggleSelectionFromLightbox() {
-                const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
-                if (this.state.selected.has(currentPhoto.id)) this.state.selected.delete(currentPhoto.id);
-                else this.state.selected.add(currentPhoto.id);
-                this.updateLightboxUI(); this.renderGrid(); this.updateCounter();
+                const p = this.state.photos[this.state.currentPhotoIndex];
+                if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
+                else this.state.selected.add(p.id);
+                this.updateLightboxUI();
+                this.renderGrid();
+                this.updateCounter();
             },
 
             updateLightboxUI() {
-                const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
+                const p = this.state.photos[this.state.currentPhotoIndex];
                 const btn = document.getElementById('lb-select-btn');
-                if (this.state.selected.has(currentPhoto.id)) { btn.classList.add('active'); btn.innerText = "❤ WYBRANE"; } 
-                else { btn.classList.remove('active'); btn.innerText = "Wybierz zdjęcie"; }
+                if (this.state.selected.has(p.id)) {
+                    btn.classList.add('active');
+                    btn.innerText = "❤ WYBRANE";
+                } else {
+                    btn.classList.remove('active');
+                    btn.innerText = "Wybierz zdjęcie";
+                }
             },
 
-            updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
+            updateCounter() { 
+                document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; 
+            },
 
             async saveSelection() {
                 const btn = document.getElementById('saveBtn');
-                btn.innerText = "Wysyłanie..."; btn.disabled = true;
+                btn.innerText = "Zapisywanie..."; btn.disabled = true;
                 const token = this.state.currentAlbumToken;
                 try {
-                    await fetch(API + '/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) });
-                    alert('Dziękujemy! Twój wybór został wysłany do fotografa (email również został powiadomiony).');
-                } catch (err) { alert('Błąd zapisu'); }
-                finally { btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; }
+                    await fetch(API + '/select', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) 
+                    });
+                    this.showToast('Wybór został zapisany i wysłany do fotografa!', 'success');
+                } catch (err) { 
+                    this.showToast('Błąd zapisu.', 'error'); 
+                } finally { 
+                    btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; 
+                }
             }
         };
 
-        const path = window.location.pathname;
-        if(path === '/' || path === '/index.html') app.init(); else if (path.startsWith('/gallery/')) app.init(); else app.init();
+        app.init();
     </script>
 </body>
 </html>
