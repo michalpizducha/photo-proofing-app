@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strefa Klienta</title>
+    <title>Strefa Klienta | Julia Berlik Foto</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -26,6 +26,7 @@
 
     <div id="view-login" class="container hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
         <div class="card" style="text-align:center;">
+            <img src="logo.jpg" alt="Julia Berlik Foto" class="brand-logo">
             <h1>Strefa Fotografa</h1>
             <p style="color:#888; margin-bottom:30px;">Zaloguj się do panelu</p>
             <form onsubmit="event.preventDefault(); app.login()">
@@ -38,17 +39,19 @@
 
     <div id="view-dashboard" class="container hidden fade-in">
         <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px; border-bottom:1px solid #eee; padding-bottom:20px;">
-            <div>
-                <h1>Moje Sesje</h1>
-                <p>Panel zarządzania</p>
+            <div style="display:flex; align-items:center; gap:20px;">
+                <img src="logo.jpg" style="height:50px;">
+                <div>
+                    <h1>Moje Sesje</h1>
+                    <p>Zarządzaj albumami</p>
+                </div>
             </div>
             <div>
                 <button onclick="router.go('upload')">+ Nowa Sesja</button>
                 <button onclick="app.logout()" style="background:#eee; color:#333; margin-left:10px;">Wyloguj</button>
             </div>
         </header>
-        <div id="albums-list">
-            </div>
+        <div id="albums-list"></div>
     </div>
 
     <div id="view-upload" class="container hidden fade-in">
@@ -78,6 +81,7 @@
     <div id="view-gallery" class="hidden">
         <div class="hero">
             <div class="hero-content fade-in">
+                <img src="logo.jpg" class="hero-logo" alt="Logo">
                 <h1 id="gallery-hero-title">Galeria</h1>
                 <p>Wybierz swoje ulubione ujęcia</p>
             </div>
@@ -90,14 +94,23 @@
                         <h2 id="gallery-title" style="font-size:1.5rem;">Tytuł</h2>
                         <p style="font-size:0.9rem; color:#888;">Kliknij serce, aby wybrać zdjęcie.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:15px;">
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
                         <span id="selection-count" style="font-weight:bold; color:var(--accent);">0 wybranych</span>
                         <button id="saveBtn" onclick="app.saveSelection()">Zatwierdź Wybór</button>
                     </div>
                 </header>
+
+                <div class="filters">
+                    <button class="filter-btn active" onclick="app.setFilter('all')">Wszystkie</button>
+                    <button class="filter-btn" onclick="app.setFilter('selected')">Wybrane ❤</button>
+                </div>
                 
                 <div id="grid" class="gallery-grid">
-                    </div>
+                    <div class="photo-card skeleton"></div>
+                    <div class="photo-card skeleton"></div>
+                    <div class="photo-card skeleton"></div>
+                    <div class="photo-card skeleton"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -105,7 +118,6 @@
     <script>
         const API = '/api';
 
-        // Router - przełączanie widoków
         const router = {
             views: ['login', 'dashboard', 'upload', 'gallery'],
             go(viewId) {
@@ -116,10 +128,9 @@
         };
 
         const app = {
-            state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0 },
+            state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
 
             init() {
-                // Obsługa klawiszy (strzałki)
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
                     if (e.key === 'ArrowLeft') this.prevPhoto();
@@ -128,7 +139,6 @@
                     if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
 
-                // Sprawdzamy czy to link do galerii czy panelu
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
@@ -138,7 +148,6 @@
                 }
             },
 
-            // Wyświetlanie powiadomień (Toast)
             showToast(message, type = 'success') {
                 const toast = document.getElementById('toast-container');
                 const text = document.getElementById('toast-text');
@@ -152,7 +161,6 @@
                 setTimeout(() => { toast.classList.remove('active'); }, 3500);
             },
 
-            // Logowanie
             async login() {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
@@ -168,7 +176,6 @@
 
             logout() { localStorage.removeItem('photo_jwt'); this.state.jwt = null; router.go('login'); },
 
-            // Ładowanie listy albumów (Dashboard)
             async loadDashboard() {
                 router.go('dashboard');
                 try {
@@ -189,6 +196,7 @@
                                 <p style="color:#666; font-size:0.9rem;">${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:10px;">
+                                <button onclick="app.copyFilenames('${a.id}')" class="btn-copy" style="padding:10px 20px; font-size:12px;">Kopiuj nazwy</button>
                                 <a href="/gallery/${a.access_token}" target="_blank"><button style="padding:10px 20px; font-size:12px;">Podgląd</button></a>
                                 <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="padding:10px 20px; font-size:12px;">Usuń</button>
                             </div>
@@ -197,7 +205,26 @@
                 } catch (err) { console.error(err); }
             },
 
-            // USUWANIE ALBUMU
+            // --- KOPIOWANIE NAZW PLIKÓW ---
+            async copyFilenames(albumId) {
+                try {
+                    const res = await fetch(API + '/admin/albums/' + albumId + '/files', { 
+                        headers: { 'Authorization': 'Bearer ' + this.state.jwt } 
+                    });
+                    const data = await res.json();
+                    
+                    if(data.filenames && data.filenames.length > 0) {
+                        const textToCopy = data.filenames.join(', ');
+                        navigator.clipboard.writeText(textToCopy);
+                        this.showToast('Skopiowano listę do schowka!', 'success');
+                    } else {
+                        this.showToast('Brak wybranych zdjęć.', 'error');
+                    }
+                } catch (err) {
+                    this.showToast('Błąd kopiowania.', 'error');
+                }
+            },
+
             async deleteAlbum(id) {
                 if(!confirm('Czy na pewno chcesz usunąć ten album? Usuniesz też wszystkie zdjęcia i wybory klienta.')) return;
                 try {
@@ -214,66 +241,44 @@
                 } catch (err) { this.showToast('Błąd: ' + err.message, 'error'); }
             },
 
-            // Tworzenie albumu + Upload
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
                 const statusDiv = document.getElementById('upload-status');
                 btn.disabled = true; btn.innerText = "Przetwarzanie...";
-                
                 try {
                     const title = document.getElementById('albumTitle').value;
                     const clientName = document.getElementById('clientName').value;
                     const clientEmail = document.getElementById('clientEmailUpload').value;
-
-                    // 1. Utwórz album w bazie
-                    const res1 = await fetch(API + '/albums', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, 
-                        body: JSON.stringify({ title, clientName }) 
-                    });
+                    const res1 = await fetch(API + '/albums', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ title, clientName }) });
                     const albumData = await res1.json();
                     const albumId = albumData[0].id;
                     const accessToken = albumData[0].access_token;
-
-                    // 2. Upload zdjęć
                     const files = document.getElementById('files').files;
                     const formData = new FormData();
                     formData.append('albumId', albumId);
                     for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
-
                     statusDiv.innerText = "Wysyłanie zdjęć (nie zamykaj)...";
-                    const res2 = await fetch(API + '/upload', { 
-                        method: 'POST', 
-                        headers: { 'Authorization': 'Bearer ' + this.state.jwt }, 
-                        body: formData 
-                    });
-                    
+                    const res2 = await fetch(API + '/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.state.jwt }, body: formData });
                     if(res2.ok) { 
                         if (clientEmail) {
                             statusDiv.innerText = "Wysyłanie maila...";
                             const link = window.location.origin + '/gallery/' + accessToken;
-                            await fetch(API + '/send-link', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt },
-                                body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link })
-                            });
-                            this.showToast('Wysłano do klienta!', 'success');
-                        } else {
-                            this.showToast('Gotowe!', 'success');
-                        }
+                            await fetch(API + '/send-link', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link }) });
+                            this.showToast('Galeria utworzona i wysłana!', 'success');
+                        } else { this.showToast('Gotowe!', 'success'); }
                         this.loadDashboard(); 
                     } else throw new Error('Błąd uploadu');
-                } catch (err) { 
-                    this.showToast(err.message, 'error');
-                } finally { 
-                    btn.disabled = false; btn.innerText = "Rozpocznij Upload"; statusDiv.innerText = "";
-                }
+                } catch (err) { this.showToast(err.message, 'error'); } finally { btn.disabled = false; btn.innerText = "Rozpocznij Upload"; statusDiv.innerText = ""; }
             },
 
-            // Widok Galerii (dla klienta)
             async loadGallery(token) {
                 this.state.currentAlbumToken = token;
                 router.go('gallery');
+                
+                // Reset widoku
+                const grid = document.getElementById('grid');
+                grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join(''); // Skeleton loading
+
                 try {
                     const res = await fetch(API + '/gallery/' + token);
                     if(!res.ok) throw new Error('Błąd');
@@ -294,17 +299,34 @@
                 } catch (err) { document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; }
             },
 
+            // --- LOGIKA FILTRÓW ---
+            setFilter(type) {
+                this.state.viewFilter = type;
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+                this.renderGrid();
+            },
+
             renderGrid() {
                 const grid = document.getElementById('grid');
-                if (this.state.photos.length === 0) {
-                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Galeria jest pusta.</p>';
+                let photosToShow = this.state.photos;
+
+                if (this.state.viewFilter === 'selected') {
+                    photosToShow = this.state.photos.filter(p => this.state.selected.has(p.id));
+                }
+
+                if (photosToShow.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć w tym widoku.</p>';
                     return;
                 }
-                grid.innerHTML = this.state.photos.map((p, index) => {
+
+                grid.innerHTML = photosToShow.map((p) => {
+                    const originalIndex = this.state.photos.findIndex(photo => photo.id === p.id);
                     const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
+                    
                     return `
-                    <div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})">
-                        <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${index})">
+                    <div class="photo-card ${isSelected}" onclick="app.openLightbox(${originalIndex})">
+                        <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${originalIndex})">
                             ${isSelected ? '❤' : '♡'}
                         </div>
                         <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie">
@@ -317,9 +339,9 @@
                 if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
                 else {
                     this.state.selected.add(p.id);
-                    if(navigator.vibrate) navigator.vibrate(50); // Wibracja na telefonie
+                    if(navigator.vibrate) navigator.vibrate(50);
                 }
-                this.renderGrid();
+                this.renderGrid(); 
                 this.updateCounter();
             },
 
@@ -386,7 +408,6 @@
             }
         };
 
-        // Start aplikacji
         app.init();
     </script>
 </body>
