@@ -17,14 +17,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- KONFIGURACJA POCZTY (POPRAWKA IPv4) ---
+// --- KONFIGURACJA POCZTY (IPv4 + Gmail) ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
-    family: 4 // <--- TO JEST KLUCZ DO SUKCESU! Wymusza IPv4
+    family: 4 // Wymuszenie IPv4 dla stabilności maili
 });
 
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -118,6 +118,8 @@ const initDb = async () => {
         client.release();
     }
 };
+
+// --- ROUTY ---
 
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
@@ -295,6 +297,7 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// --- TU BYŁ BŁĄD, POPRAWKA: '0.0.0.0' ---
 initDb().then(() => {
-    app.listen(PORT, () => console.log(`Serwer start na porcie ${PORT}`));
+    app.listen(PORT, '0.0.0.0', () => console.log(`Serwer start na porcie ${PORT}`));
 });
