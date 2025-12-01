@@ -18,15 +18,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- KONFIGURACJA POCZTY (BREVO) ---
+// Konfiguracja Poczty
 const transporter = nodemailer.createTransport(new BrevoTransport({
     apiKey: process.env.BREVO_API_KEY
 }));
 
+// Zabezpieczenia i pliki statyczne
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// WAŻNE: To musi być przed routingiem API
+app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -106,7 +109,7 @@ const initDb = async () => {
         if (userCheck.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
             await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            console.log('>>> KONTO ADMINA: admin@example.com / admin123');
+            console.log('>>> UTWORZONO ADMINA: admin@example.com / admin123');
         }
     } catch (err) {
         console.error('Błąd Init DB:', err);
@@ -115,17 +118,17 @@ const initDb = async () => {
     }
 };
 
-// --- ROUTY ---
+// --- API ---
 
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (result.rows.length === 0) return res.status(401).json({ error: 'Błędny login lub hasło' });
+        if (result.rows.length === 0) return res.status(401).json({ error: 'Błędny login' });
 
         const user = result.rows[0];
         const validPassword = await bcrypt.compare(password, user.password_hash);
-        if (!validPassword) return res.status(401).json({ error: 'Błędny login lub hasło' });
+        if (!validPassword) return res.status(401).json({ error: 'Błędne hasło' });
 
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ token, email: user.email });
@@ -152,6 +155,24 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     }
 });
 
+// Endpoint do pobierania nazw plików wybranych zdjęć
+app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT p.filename 
+            FROM photos p
+            JOIN selections s ON p.id = s.photo_id
+            WHERE p.album_id = $1
+        `, [id]);
+        
+        const filenames = result.rows.map(r => r.filename);
+        res.json({ filenames });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/albums', authenticateToken, async (req, res) => {
     const { title, clientName } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
@@ -166,7 +187,6 @@ app.post('/api/albums', authenticateToken, async (req, res) => {
     }
 });
 
-// --- USUWANIE ALBUMU ---
 app.delete('/api/albums/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
@@ -190,29 +210,34 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
 
         const results = [];
         
+        // Upload sekwencyjny żeby nie zabić pamięci RAM
         for (const file of req.files) {
-            const finalBuffer = await sharp(file.buffer)
-                .rotate()
-                .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true }) 
-                .jpeg({ quality: 90 }) 
-                .toBuffer();
+            try {
+                const finalBuffer = await sharp(file.buffer)
+                    .rotate()
+                    .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true }) 
+                    .jpeg({ quality: 85 }) 
+                    .toBuffer();
 
-            const uploadResult = await new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    { folder: `proofing/${albumId}` },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
+                const uploadResult = await new Promise((resolve, reject) => {
+                    const stream = cloudinary.uploader.upload_stream(
+                        { folder: `proofing/${albumId}` },
+                        (error, result) => {
+                            if (error) reject(error);
+                            else resolve(result);
+                        }
+                    );
+                    streamifier.createReadStream(finalBuffer).pipe(stream);
+                });
+
+                const dbRes = await pool.query(
+                    'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
+                    [albumId, uploadResult.secure_url, uploadResult.public_id, file.originalname]
                 );
-                streamifier.createReadStream(finalBuffer).pipe(stream);
-            });
-
-            const dbRes = await pool.query(
-                'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
-                [albumId, uploadResult.secure_url, uploadResult.public_id, file.originalname]
-            );
-            results.push(dbRes.rows[0]);
+                results.push(dbRes.rows[0]);
+            } catch (innerErr) {
+                console.error("Błąd pojedynczego pliku:", innerErr);
+            }
         }
         res.json({ uploaded: results });
     } catch (err) {
@@ -263,7 +288,7 @@ app.post('/api/select', async (req, res) => {
                 text: `Klient w albumie "${album.title}" wybrał ${photoIds.length} zdjęć.`
             });
         } catch (mailErr) {
-            console.error('Błąd maila do fotografa:', mailErr);
+            console.error('Błąd maila:', mailErr);
         }
 
         res.json({ success: true });
