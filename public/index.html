@@ -3,92 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strefa Klienta</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <title>Strefa Klienta | Premium Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        /* --- STYLE PROFESJONALNE --- */
+        /* --- DESIGN SYSTEM PREMIUM --- */
         :root {
-            --bg: #ffffff;
-            --text: #333333;
-            --accent: #2c3e50; /* Elegancki granat */
-            --highlight: #e67e22; /* Akcent koloru */
-            --grey: #f4f4f4;
+            --bg: #fdfdfd;
+            --surface: #ffffff;
+            --text-main: #1a1a1a;
+            --text-muted: #666;
+            --accent: #c5a059; /* Złoty/Beżowy - kolor premium */
+            --accent-hover: #b08d45;
+            --danger: #e74c3c;
+            --shadow: 0 10px 30px rgba(0,0,0,0.08);
+            --border-radius: 8px;
         }
 
         body { 
-            font-family: 'Lato', sans-serif; 
+            font-family: 'Raleway', sans-serif; 
             background: var(--bg); 
-            color: var(--text); 
+            color: var(--text-main); 
             margin: 0; 
             padding: 0; 
-            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
 
-        h1, h2, h3 { font-family: 'Playfair Display', serif; margin-bottom: 0.5em; }
+        h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 1px; font-weight: 600; color: #111; }
         
         /* Layout */
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
         .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Buttony */
         button { 
-            background: var(--accent); 
+            background: #111; 
             color: white; 
             border: none; 
-            padding: 12px 24px; 
-            border-radius: 2px; 
+            padding: 14px 28px; 
+            border-radius: 0; /* Kwadratowe, modne przyciski */
             cursor: pointer; 
-            font-size: 14px; 
+            font-size: 13px; 
             text-transform: uppercase; 
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-secondary { background: #95a5a6; }
-        .btn-success { background: #27ae60; }
+        button:hover { background: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(197, 160, 89, 0.3); }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-secondary:hover { background: #e0e0e0; }
         
         /* Formularze */
         .card { 
-            background: white; 
-            padding: 40px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            background: var(--surface); 
+            padding: 50px; 
+            box-shadow: var(--shadow); 
+            border-radius: var(--border-radius);
             margin-bottom: 2rem; 
-            border: 1px solid #eee;
+            border: 1px solid #f0f0f0;
         }
         input { 
             width: 100%; 
-            padding: 15px; 
+            padding: 16px; 
             margin-bottom: 20px; 
-            border: 1px solid #ddd; 
+            border: 1px solid #e0e0e0; 
             background: #fafafa;
+            font-family: 'Raleway', sans-serif;
             box-sizing: border-box;
+            transition: border 0.3s;
         }
+        input:focus { outline: none; border-color: var(--accent); background: white; }
 
-        /* Galeria */
+        /* --- GALERIA KLIENTA --- */
         .gallery-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 30px;
+            padding: 20px 40px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
             position: sticky;
             top: 0;
-            background: rgba(255,255,255,0.95);
             z-index: 10;
+            border-bottom: 1px solid #eee;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
         }
-
+        
         .gallery-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 20px; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 4px; /* Małe odstępy jak na Instagramie */
+            padding: 20px 0;
         }
 
-        /* Kafelki zdjęć */
         .photo-card { 
             position: relative; 
-            cursor: zoom-in; /* Lupa */
-            aspect-ratio: 1; /* Kwadrat */
+            cursor: pointer; 
+            aspect-ratio: 2/3; /* Portretowy format */
             overflow: hidden;
             background: #eee;
         }
@@ -97,50 +109,46 @@
             width: 100%; 
             height: 100%; 
             object-fit: cover; 
-            transition: transform 0.5s ease;
-            
-            /* OCHRONA PRZED POBIERANIEM */
-            user-select: none;
-            -webkit-user-drag: none;
-            pointer-events: none; /* Kliknięcie obsługuje div rodzic */
+            transition: transform 0.6s ease;
+            filter: grayscale(20%); /* Lekko artystyczny filtr */
         }
 
-        .photo-card:hover img { transform: scale(1.03); }
+        .photo-card:hover img { transform: scale(1.05); filter: grayscale(0%); }
 
-        /* Nakładka wyboru */
-        .select-btn {
+        /* Ikona wyboru na kafelku */
+        .heart-icon {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            background: rgba(255,255,255,0.8);
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #ccc;
-            z-index: 2;
-            font-size: 16px;
-        }
-        
-        .photo-card.selected .select-btn {
-            background: var(--highlight);
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
             color: white;
-            border-color: var(--highlight);
+            opacity: 0.7;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            z-index: 2;
         }
         
-        .photo-card.selected img {
-            filter: brightness(0.9);
+        .photo-card.selected .heart-icon {
+            color: var(--accent);
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        
+        .photo-card.selected::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 4px solid var(--accent);
+            z-index: 1;
+            pointer-events: none;
         }
 
-        /* LIGHTBOX (Powiększanie) */
+        /* --- LIGHTBOX (Pełny ekran) --- */
         #lightbox {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(10, 10, 10, 0.98);
+            z-index: 2000;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -151,41 +159,100 @@
         #lightbox.active { opacity: 1; pointer-events: all; }
         
         #lightbox img {
-            max-width: 90%;
-            max-height: 90%;
-            box-shadow: 0 0 20px black;
-            user-select: none; /* Nadal nie można pobrać */
+            max-width: 90vw;
+            max-height: 85vh;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            user-select: none;
         }
-        
-        #lightbox .close {
+
+        /* Kontrolki Lightboxa */
+        .lb-nav {
             position: absolute;
-            top: 20px; right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
             color: white;
             font-size: 40px;
             cursor: pointer;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 50px; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.3s;
+        }
+        .lb-nav:hover { background: var(--accent); }
+        .lb-prev { left: 30px; }
+        .lb-next { right: 30px; }
+        .lb-close { position: absolute; top: 30px; right: 30px; font-size: 40px; color: #fff; cursor: pointer; }
+
+        /* Panel dolny Lightboxa */
+        .lb-controls {
+            position: absolute;
+            bottom: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 30px;
+            border-radius: 30px;
+            backdrop-filter: blur(5px);
+        }
+        .lb-select-btn {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+        }
+        .lb-select-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
         }
 
-        /* Dashboard */
+        /* --- DASHBOARD FOTOGRAFA --- */
         .album-item { 
             display: flex; 
+            flex-wrap: wrap;
             justify-content: space-between; 
             align-items: center;
             border-bottom: 1px solid #eee;
-            padding: 20px 0;
+            padding: 25px 0;
         }
-        .album-item:last-child { border-bottom: none; }
-        .album-actions a { color: var(--accent); text-decoration: none; font-weight: bold; margin-left: 15px;}
+        .album-info h3 { margin: 0 0 5px 0; font-size: 1.2rem; }
+        .album-info p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+        
+        .email-sender {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .email-sender input { margin: 0; padding: 10px; width: 250px; font-size: 14px; }
+        .email-sender button { padding: 11px 20px; font-size: 12px; }
 
     </style>
 </head>
-<body oncontextmenu="return false;"> <div id="lightbox" onclick="app.closeLightbox()">
-        <span class="close">&times;</span>
+<body oncontextmenu="return false;">
+
+    <div id="lightbox">
+        <div class="lb-close" onclick="app.closeLightbox()">&times;</div>
+        <div class="lb-nav lb-prev" onclick="app.prevPhoto()">&#10094;</div>
+        <div class="lb-nav lb-next" onclick="app.nextPhoto()">&#10095;</div>
+        
         <img id="lightbox-img" src="" oncontextmenu="return false;">
+        
+        <div class="lb-controls">
+            <span style="color:white; margin-right:15px; font-size:14px;">Użyj strzałek i SPACJI</span>
+            <button id="lb-select-btn" class="lb-select-btn" onclick="app.toggleSelectionFromLightbox()">
+                ❤ Wybierz zdjęcie
+            </button>
+        </div>
     </div>
 
-    <div id="view-login" class="container" style="display:flex; height:100vh; align-items:center; justify-content:center;">
-        <div class="card" style="width: 100%; max-width: 400px;">
-            <h2 style="text-align: center;">Strefa Fotografa</h2>
+    <div id="view-login" class="container hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
+        <div class="card" style="width:100%; max-width:400px; text-align:center;">
+            <h1>Strefa Fotografa</h1>
+            <p style="color:#888; margin-bottom:30px;">Zaloguj się do panelu zarządzania</p>
             <form onsubmit="event.preventDefault(); app.login()">
                 <input type="email" id="email" placeholder="Email" required value="admin@example.com">
                 <input type="password" id="password" placeholder="Hasło" required value="admin123">
@@ -195,56 +262,64 @@
     </div>
 
     <div id="view-dashboard" class="container hidden">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin: 40px 0;">
-            <h1>Moje Sesje</h1>
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:50px;">
             <div>
-                <button onclick="router.go('upload')">+ Nowy Album</button>
+                <h1>Moje Sesje</h1>
+                <p style="color:#666">Zarządzaj albumami i wysyłaj zdjęcia</p>
+            </div>
+            <div>
+                <button onclick="router.go('upload')">+ Nowa Sesja</button>
                 <button onclick="app.logout()" class="btn-secondary" style="margin-left:10px">Wyloguj</button>
             </div>
         </header>
-        <div class="card">
+        <div class="card fade-in">
             <div id="albums-list">
                 </div>
         </div>
     </div>
 
     <div id="view-upload" class="container hidden">
-        <header style="margin: 40px 0;">
-            <button onclick="router.go('dashboard')" class="btn-secondary">← Wróć</button>
+        <header style="margin-bottom:40px;">
+            <button onclick="router.go('dashboard')" class="btn-secondary">← Wróć do listy</button>
         </header>
-        <div class="card">
-            <h2>Utwórz nową galerię</h2>
+        <div class="card fade-in" style="max-width:800px; margin:0 auto;">
+            <h2 style="text-align:center; margin-bottom:30px;">Utwórz Nową Galerię</h2>
             <form onsubmit="event.preventDefault(); app.createAlbum()">
                 <label>Nazwa Sesji</label>
                 <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required>
                 <label>Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
-                <div class="file-area" style="padding: 20px; border: 2px dashed #ddd; text-align: center; margin-bottom: 20px;">
-                    <p>Przeciągnij zdjęcia tutaj lub kliknij</p>
-                    <input type="file" id="files" multiple accept="image/jpeg" required>
+                
+                <div style="border: 2px dashed #ddd; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
+                    <p style="font-size: 1.1rem; color: #555;">Wybierz zdjęcia (JPG)</p>
+                    <input type="file" id="files" multiple accept="image/jpeg" required style="border:none; background:transparent;">
                 </div>
-                <button type="submit" id="uploadBtn">Wyślij Zdjęcia</button>
+                
+                <button type="submit" id="uploadBtn" style="width:100%; padding: 20px;">Rozpocznij Upload</button>
             </form>
-            <div id="upload-status" style="margin-top:20px; color: var(--accent);"></div>
+            <div id="upload-status" style="margin-top:20px; text-align:center; color: var(--accent); font-weight:bold;"></div>
         </div>
     </div>
 
-    <div id="view-gallery" class="container hidden">
+    <div id="view-gallery" class="hidden">
         <header class="gallery-header">
             <div>
-                <h2 id="gallery-title" style="margin:0">Galeria</h2>
-                <small style="color:#777">Kliknij w kółeczko, aby wybrać zdjęcie. Kliknij w zdjęcie, aby powiększyć.</small>
+                <h2 id="gallery-title" style="margin:0; font-size:1.5rem;">Galeria</h2>
+                <div style="font-size:0.9rem; color:#777; margin-top:5px;">
+                    Kliknij zdjęcie, aby powiększyć. Użyj <span style="border:1px solid #ccc; padding:0 5px; border-radius:4px;">SPACJI</span> aby wybrać.
+                </div>
             </div>
-            <div class="gallery-actions">
-                <span id="selection-count" style="margin-right: 20px; font-weight: bold;">Wybrano: 0</span>
-                <button onclick="app.saveSelection()" class="btn-success">Zatwierdź Wybór</button>
+            <div style="display:flex; align-items:center; gap:20px;">
+                <span id="selection-count" style="font-weight: 600; color: var(--accent); font-size:1.2rem;">0 wybranych</span>
+                <button onclick="app.saveSelection()">Zatwierdź Wybór</button>
             </div>
         </header>
-        <div id="grid" class="gallery-grid">
-            </div>
+        
+        <div class="container fade-in">
+            <div id="grid" class="gallery-grid">
+                </div>
+        </div>
     </div>
-
-    <div id="toast-container"></div>
 
     <script>
         const API = '/api';
@@ -257,7 +332,10 @@
                     if(el) el.classList.add('hidden');
                 });
                 const active = document.getElementById('view-' + viewId);
-                if(active) active.classList.remove('hidden');
+                if(active) {
+                    active.classList.remove('hidden');
+                    active.classList.add('fade-in');
+                }
             }
         };
 
@@ -265,23 +343,36 @@
             state: {
                 jwt: localStorage.getItem('photo_jwt'),
                 selected: new Set(),
-                currentAlbumToken: null
+                currentAlbumToken: null,
+                photos: [], // Przechowujemy listę zdjęć dla lightboxa
+                currentPhotoIndex: 0
             },
 
             init() {
+                // Obsługa klawiatury dla Lightboxa
+                document.addEventListener('keydown', (e) => {
+                    if (!document.getElementById('lightbox').classList.contains('active')) return;
+                    
+                    if (e.key === 'ArrowLeft') this.prevPhoto();
+                    if (e.key === 'ArrowRight') this.nextPhoto();
+                    if (e.key === 'Escape') this.closeLightbox();
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        this.toggleSelectionFromLightbox();
+                    }
+                });
+
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
                     this.loadGallery(token);
                 } else {
-                    if (this.state.jwt) {
-                        this.loadDashboard();
-                    } else {
-                        router.go('login');
-                    }
+                    if (this.state.jwt) this.loadDashboard();
+                    else router.go('login');
                 }
             },
 
+            // --- AUTH ---
             async login() {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
@@ -308,6 +399,7 @@
                 router.go('login');
             },
 
+            // --- DASHBOARD ---
             async loadDashboard() {
                 router.go('dashboard');
                 try {
@@ -316,17 +408,28 @@
                     });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
+                    
+                    if(albums.length === 0) {
+                        container.innerHTML = '<p style="text-align:center; padding:50px;">Brak albumów. Utwórz pierwszy!</p>';
+                        return;
+                    }
+
                     container.innerHTML = albums.map(a => {
                         const link = window.location.origin + '/gallery/' + a.access_token;
                         return `
                         <div class="album-item">
-                            <div>
-                                <h3 style="margin:0">${a.title}</h3>
-                                <p style="margin:5px 0; color:#888">${a.client_name} | Zdjęć: ${a.photo_count || 0} | Wybrano: ${a.selection_count || 0}</p>
+                            <div class="album-info">
+                                <h3>${a.title}</h3>
+                                <p>${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
+                                <div class="email-sender">
+                                    <input type="email" id="mail-${a.id}" placeholder="Wpisz email klienta...">
+                                    <button class="btn-secondary" onclick="app.sendEmail('${a.id}', '${a.title}', '${link}')">Wyślij Link</button>
+                                </div>
                             </div>
                             <div class="album-actions">
-                                <a href="mailto:?subject=Twoja Galeria Zdjęć&body=Cześć! Przesyłam link do Twojej galerii: ${link}" target="_blank">📧 Wyślij Email</a>
-                                <a href="/gallery/${a.access_token}" target="_blank">Otwórz -></a>
+                                <a href="/gallery/${a.access_token}" target="_blank" style="text-decoration:none;">
+                                    <button>Otwórz Galerię</button>
+                                </a>
                             </div>
                         </div>
                     `}).join('');
@@ -335,15 +438,29 @@
                 }
             },
 
+            sendEmail(id, title, link) {
+                const emailInput = document.getElementById(`mail-${id}`);
+                const email = emailInput.value;
+                if(!email) {
+                    alert("Wpisz adres email klienta!");
+                    return;
+                }
+                const subject = encodeURIComponent(`Twoja galeria zdjęć: ${title}`);
+                const body = encodeURIComponent(`Dzień dobry,\n\nPrzesyłam link do galerii zdjęć. Proszę o wybór ujęć do obróbki.\n\nLink: ${link}\n\nPozdrawiam`);
+                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+            },
+
+            // --- UPLOAD ---
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
                 btn.disabled = true;
-                btn.innerText = "Przetwarzanie...";
+                btn.innerText = "Przetwarzanie (nie zamykaj okna)...";
                 
                 try {
                     const title = document.getElementById('albumTitle').value;
                     const clientName = document.getElementById('clientName').value;
                     
+                    // 1. Utwórz album
                     const res1 = await fetch(API + '/albums', {
                         method: 'POST',
                         headers: { 
@@ -355,14 +472,17 @@
                     const albumData = await res1.json();
                     const albumId = albumData[0].id;
 
+                    // 2. Upload zdjęć
                     const files = document.getElementById('files').files;
                     const formData = new FormData();
                     formData.append('albumId', albumId);
+                    
+                    // Limit plików na raz dla bezpieczeństwa (np. 50)
                     for (let i = 0; i < files.length; i++) {
                         formData.append('photos', files[i]);
                     }
 
-                    document.getElementById('upload-status').innerText = "Wysyłanie i optymalizacja... Czekaj...";
+                    document.getElementById('upload-status').innerText = "Wysyłanie zdjęć... To może potrwać w zależności od łącza.";
 
                     const res2 = await fetch(API + '/upload', {
                         method: 'POST',
@@ -371,22 +491,21 @@
                     });
                     
                     if(res2.ok) {
-                        alert('Gotowe!');
+                        alert('Sukces! Galeria gotowa.');
                         this.loadDashboard();
                     } else {
-                        throw new Error('Błąd uploadu');
+                        throw new Error('Błąd wysyłania plików.');
                     }
 
                 } catch (err) {
                     alert(err.message);
                 } finally {
                     btn.disabled = false;
-                    btn.innerText = "Wyślij Zdjęcia";
+                    btn.innerText = "Rozpocznij Upload";
                 }
             },
 
-            // --- KLIENT ---
-
+            // --- GALERIA KLIENTA ---
             async loadGallery(token) {
                 this.state.currentAlbumToken = token;
                 router.go('gallery');
@@ -397,55 +516,91 @@
                     
                     document.getElementById('gallery-title').innerText = data.album[0].title;
                     this.state.selected = new Set(data.selections);
-                    this.renderGrid(data.photos);
+                    this.state.photos = data.photos; // Zapisz zdjęcia do pamięci dla Lightboxa
+                    
+                    this.renderGrid();
                     this.updateCounter();
 
                 } catch (err) {
-                    document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px'>Nie znaleziono galerii.</h1>";
+                    document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Galeria nie istnieje.</p></div>";
                 }
             },
 
-            renderGrid(photos) {
+            renderGrid() {
                 const grid = document.getElementById('grid');
-                grid.innerHTML = photos.map(p => {
+                grid.innerHTML = this.state.photos.map((p, index) => {
                     const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
                     return `
-                        <div class="photo-card ${isSelected}">
-                            <div class="select-btn" onclick="app.toggleSelection('${p.id}', this.parentNode)">
-                                ${isSelected ? '✔' : ''}
-                            </div>
-                            <img src="${p.proof_url}" loading="lazy" onclick="app.openLightbox('${p.proof_url}')">
+                        <div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})">
+                            <div class="heart-icon">${isSelected ? '❤' : '♡'}</div>
+                            <img src="${p.proof_url}" loading="lazy">
                         </div>
                     `;
                 }).join('');
             },
 
-            toggleSelection(id, cardElement) {
-                if (this.state.selected.has(id)) {
-                    this.state.selected.delete(id);
-                    cardElement.classList.remove('selected');
-                    cardElement.querySelector('.select-btn').innerText = '';
-                } else {
-                    this.state.selected.add(id);
-                    cardElement.classList.add('selected');
-                    cardElement.querySelector('.select-btn').innerText = '✔';
-                }
-                this.updateCounter();
-            },
-
-            openLightbox(url) {
+            // --- LIGHTBOX LOGIC ---
+            openLightbox(index) {
+                this.state.currentPhotoIndex = index;
+                const p = this.state.photos[index];
+                
                 const box = document.getElementById('lightbox');
                 const img = document.getElementById('lightbox-img');
-                img.src = url;
+                const selectBtn = document.getElementById('lb-select-btn');
+                
+                img.src = p.proof_url;
                 box.classList.add('active');
+                this.updateLightboxUI();
             },
 
             closeLightbox() {
                 document.getElementById('lightbox').classList.remove('active');
             },
 
+            nextPhoto() {
+                if (this.state.currentPhotoIndex < this.state.photos.length - 1) {
+                    this.openLightbox(this.state.currentPhotoIndex + 1);
+                } else {
+                    this.openLightbox(0); // Pętla
+                }
+            },
+
+            prevPhoto() {
+                if (this.state.currentPhotoIndex > 0) {
+                    this.openLightbox(this.state.currentPhotoIndex - 1);
+                } else {
+                    this.openLightbox(this.state.photos.length - 1); // Pętla
+                }
+            },
+
+            toggleSelectionFromLightbox() {
+                const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
+                if (this.state.selected.has(currentPhoto.id)) {
+                    this.state.selected.delete(currentPhoto.id);
+                } else {
+                    this.state.selected.add(currentPhoto.id);
+                }
+                
+                this.updateLightboxUI(); // Aktualizuj przycisk w Lightbox
+                this.renderGrid(); // Aktualizuj siatkę w tle
+                this.updateCounter();
+            },
+
+            updateLightboxUI() {
+                const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
+                const btn = document.getElementById('lb-select-btn');
+                
+                if (this.state.selected.has(currentPhoto.id)) {
+                    btn.classList.add('active');
+                    btn.innerText = "❤ WYBRANE";
+                } else {
+                    btn.classList.remove('active');
+                    btn.innerText = "Wybierz zdjęcie";
+                }
+            },
+
             updateCounter() {
-                document.getElementById('selection-count').innerText = `Wybrano: ${this.state.selected.size}`;
+                document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`;
             },
 
             async saveSelection() {
@@ -466,14 +621,12 @@
             }
         };
 
+        // Router Init
         const path = window.location.pathname;
-        if(path === '/' || path === '/index.html') {
-             app.init();
-        } else if (path.startsWith('/gallery/')) {
-             app.init();
-        } else {
-             app.init();
-        }
+        if(path === '/' || path === '/index.html') app.init();
+        else if (path.startsWith('/gallery/')) app.init();
+        else app.init();
+
     </script>
 </body>
 </html>
