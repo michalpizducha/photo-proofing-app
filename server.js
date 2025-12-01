@@ -137,4 +137,120 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
             COUNT(DISTINCT s.id) as selection_count
             FROM albums a
             LEFT JOIN photos p ON a.id = p.album_id
-            LEFT JOIN selections s ON a.id = s.album_
+            LEFT JOIN selections s ON a.id = s.album_id
+            WHERE a.user_id = $1
+            GROUP BY a.id ORDER BY created_at DESC
+        `, [req.user.id]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/albums', authenticateToken, async (req, res) => {
+    const { title, clientName } = req.body;
+    const token = uuidv4().replace(/-/g, '').substring(0, 16);
+    try {
+        const result = await pool.query(
+            'INSERT INTO albums (user_id, title, client_name, access_token) VALUES ($1, $2, $3, $4) RETURNING *',
+            [req.user.id, title, clientName, token]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ZMODYFIKOWANY UPLOAD (BEZ ZNAKU WODNEGO)
+app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, res) => {
+    const { albumId } = req.body;
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Brak plików' });
+
+    try {
+        const albumCheck = await pool.query('SELECT * FROM albums WHERE id=$1 AND user_id=$2', [albumId, req.user.id]);
+        if (albumCheck.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
+
+        const results = [];
+        
+        for (const file of req.files) {
+            // Tylko rotacja (naprawa zdjęć pionowych) i lekka kompresja
+            // Usuwamy .composite() czyli znak wodny
+            const finalBuffer = await sharp(file.buffer)
+                .rotate()
+                .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true }) 
+                .jpeg({ quality: 90 }) 
+                .toBuffer();
+
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: `proofing/${albumId}` },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                streamifier.createReadStream(finalBuffer).pipe(stream);
+            });
+
+            const dbRes = await pool.query(
+                'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
+                [albumId, uploadResult.secure_url, uploadResult.public_id, file.originalname]
+            );
+            results.push(dbRes.rows[0]);
+        }
+        res.json({ uploaded: results });
+    } catch (err) {
+        console.error('Upload Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/gallery/:token', async (req, res) => {
+    try {
+        const albumRes = await pool.query('SELECT id, title, client_name, status FROM albums WHERE access_token = $1', [req.params.token]);
+        if (albumRes.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+
+        const album = albumRes.rows;
+        const photosRes = await pool.query('SELECT id, proof_url, filename FROM photos WHERE album_id = $1 ORDER BY filename', [album[0].id]);
+        const selectionsRes = await pool.query('SELECT photo_id FROM selections WHERE album_id = $1', [album[0].id]);
+        
+        const selectedIds = selectionsRes.rows.map(r => r.photo_id);
+        res.json({ album, photos: photosRes.rows, selections: selectedIds });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/select', async (req, res) => {
+    const { token, photoIds } = req.body;
+    const client = await pool.connect();
+    try {
+        const albumCheck = await client.query('SELECT id, status FROM albums WHERE access_token = $1', [token]);
+        if (albumCheck.rows.length === 0) throw new Error('Błędny token');
+        
+        const albumId = albumCheck.rows[0].id;
+        
+        await client.query('BEGIN');
+        await client.query('DELETE FROM selections WHERE album_id = $1', [albumId]);
+        
+        for (const pid of photoIds) {
+            await client.query('INSERT INTO selections (album_id, photo_id) VALUES ($1, $2)', [albumId, pid]);
+        }
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+initDb().then(() => {
+    app.listen(PORT, () => console.log(`Serwer start na porcie ${PORT}`));
+});
