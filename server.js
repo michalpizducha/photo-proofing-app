@@ -17,13 +17,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- NAJPROSTSZA I NAJSKUTECZNIEJSZA KONFIGURACJA ---
+// --- KONFIGURACJA POCZTY (POPRAWKA IPv4) ---
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // Render sam dobierze najlepszy port
+    service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    }
+    },
+    family: 4 // <--- TO JEST KLUCZ DO SUKCESU! Wymusza IPv4
 });
 
 app.use(helmet({ contentSecurityPolicy: false }));
