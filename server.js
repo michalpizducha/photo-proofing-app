@@ -1,3 +1,15 @@
+Jeśli chodzi o kod JavaScript, to musimy rozróżnić dwa miejsca:
+
+Frontend (w przeglądarce): Ten kod znajduje się wewnątrz pliku index.html, który wysłałem przed chwilą (w sekcji <script>). Nie ma osobnego pliku .js dla frontendu w Twoim projekcie.
+
+Backend (na serwerze): To jest plik server.js.
+
+Dla pewności, abyś miała kompletny, działający zestaw (z naprawionym wysyłaniem powiadomień do Ciebie i obsługą Brevo), poniżej zamieszczam aktualny i poprawny kod pliku server.js.
+
+Skopiuj go i podmień w całości w pliku server.js.
+
+JavaScript
+
 require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
@@ -229,7 +241,6 @@ app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
     try {
-        // Tu nie musimy już pobierać emaila z bazy, bo wyślemy na Twój główny email
         const albumCheck = await client.query('SELECT a.id, a.title, a.client_name FROM albums a WHERE access_token = $1', [token]);
         if (albumCheck.rows.length === 0) throw new Error('Błędny token');
         
@@ -245,10 +256,10 @@ app.post('/api/select', async (req, res) => {
         await client.query('COMMIT');
 
         try {
-            // WYSYŁKA POWIADOMIENIA
+            // WYSYŁKA POWIADOMIENIA DO CIEBIE
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_USER, // <--- POPRAWKA: Wysyłamy do Ciebie (na maila z.env)
+                to: process.env.EMAIL_USER, // Wysyłamy do właściciela konta (Ciebie)
                 subject: `📸 Klient ${album.client_name} zakończył wybór!`,
                 text: `Klient w albumie "${album.title}" wybrał ${photoIds.length} zdjęć.`
             });
