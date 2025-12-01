@@ -12,15 +12,13 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
-// Import transportu Brevo
 const BrevoTransport = require('nodemailer-brevo-transport');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- KONFIGURACJA POCZTY (BREVO API) ---
-// Używamy API Brevo (port 443) zamiast SMTP
+// --- KONFIGURACJA POCZTY (BREVO) ---
 const transporter = nodemailer.createTransport(new BrevoTransport({
     apiKey: process.env.BREVO_API_KEY
 }));
@@ -108,7 +106,7 @@ const initDb = async () => {
         if (userCheck.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
             await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            console.log('>>> UTWORZONO KONTO ADMINA: admin@example.com / admin123');
+            console.log('>>> KONTO ADMINA: admin@example.com / admin123');
         }
     } catch (err) {
         console.error('Błąd Init DB:', err);
@@ -163,6 +161,20 @@ app.post('/api/albums', authenticateToken, async (req, res) => {
             [req.user.id, title, clientName, token]
         );
         res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- USUWANIE ALBUMU ---
+app.delete('/api/albums/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const checkOwner = await pool.query('SELECT * FROM albums WHERE id = $1 AND user_id = $2', [id, req.user.id]);
+        if (checkOwner.rows.length === 0) return res.status(403).json({ error: 'Brak uprawnień' });
+
+        await pool.query('DELETE FROM albums WHERE id = $1', [id]);
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -244,10 +256,9 @@ app.post('/api/select', async (req, res) => {
         await client.query('COMMIT');
 
         try {
-            // WYSYŁKA POWIADOMIENIA DO CIEBIE
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_USER, // Wysyłamy do właściciela konta (Ciebie)
+                to: process.env.EMAIL_USER, 
                 subject: `📸 Klient ${album.client_name} zakończył wybór!`,
                 text: `Klient w albumie "${album.title}" wybrał ${photoIds.length} zdjęć.`
             });
@@ -266,12 +277,9 @@ app.post('/api/select', async (req, res) => {
 
 app.post('/api/send-link', authenticateToken, async (req, res) => {
     const { clientEmail, albumTitle, link } = req.body;
-    
     if(!clientEmail) return res.status(400).json({ error: 'Brak maila' });
 
     try {
-        console.log('Próba wysłania maila do:', clientEmail);
-        
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: clientEmail,
@@ -284,10 +292,8 @@ app.post('/api/send-link', authenticateToken, async (req, res) => {
                 </div>
             `
         });
-        console.log('Mail wysłany!');
         res.json({ success: true });
     } catch (err) {
-        console.error('Szczegóły błędu maila:', err);
         res.status(500).json({ error: 'Błąd: ' + err.message });
     }
 });
@@ -299,4 +305,3 @@ app.get('*', (req, res) => {
 initDb().then(() => {
     app.listen(PORT, '0.0.0.0', () => console.log(`Serwer start na porcie ${PORT}`));
 });
-
