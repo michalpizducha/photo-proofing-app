@@ -12,15 +12,15 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
-// ZMIANA 1: Importujemy transport Brevo
+// Import transportu Brevo
 const BrevoTransport = require('nodemailer-brevo-transport');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- ZMIANA 2: KONFIGURACJA POCZTY (BREVO API) ---
-// Zamiast SMTP Gmaila, używamy bezpiecznego API Brevo (port 443)
+// --- KONFIGURACJA POCZTY (BREVO API) ---
+// Używamy API Brevo (port 443) zamiast SMTP
 const transporter = nodemailer.createTransport(new BrevoTransport({
     apiKey: process.env.BREVO_API_KEY
 }));
@@ -229,7 +229,8 @@ app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
     try {
-        const albumCheck = await client.query('SELECT a.id, a.title, a.client_name, u.email as photographer_email FROM albums a JOIN users u ON a.user_id = u.id WHERE access_token = $1', [token]);
+        // Tu nie musimy już pobierać emaila z bazy, bo wyślemy na Twój główny email
+        const albumCheck = await client.query('SELECT a.id, a.title, a.client_name FROM albums a WHERE access_token = $1', [token]);
         if (albumCheck.rows.length === 0) throw new Error('Błędny token');
         
         const album = albumCheck.rows[0];
@@ -244,9 +245,10 @@ app.post('/api/select', async (req, res) => {
         await client.query('COMMIT');
 
         try {
+            // WYSYŁKA POWIADOMIENIA
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
-                to: album.photographer_email,
+                to: process.env.EMAIL_USER, // <--- POPRAWKA: Wysyłamy do Ciebie (na maila z.env)
                 subject: `📸 Klient ${album.client_name} zakończył wybór!`,
                 text: `Klient w albumie "${album.title}" wybrał ${photoIds.length} zdjęć.`
             });
