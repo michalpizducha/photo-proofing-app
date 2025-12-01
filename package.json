@@ -1,6 +1,6 @@
 {
   "name": "secure-photo-proofing",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Profesjonalny system proofingu zdjęć",
   "main": "server.js",
   "scripts": {
