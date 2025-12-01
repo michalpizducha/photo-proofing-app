@@ -11,10 +11,20 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
+const nodemailer = require('nodemailer'); // NOWOŚĆ
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
+
+// --- KONFIGURACJA POCZTY ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
 // --- KONFIGURACJA ---
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -56,6 +66,7 @@ const initDb = async () => {
     try {
         await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
         
+        // Tabela Users
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,6 +76,7 @@ const initDb = async () => {
             );
         `);
         
+        // Tabela Albums
         await client.query(`
             CREATE TABLE IF NOT EXISTS albums (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -77,6 +89,7 @@ const initDb = async () => {
             );
         `);
         
+        // Tabela Photos
         await client.query(`
             CREATE TABLE IF NOT EXISTS photos (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -88,6 +101,7 @@ const initDb = async () => {
             );
         `);
         
+        // Tabela Selections
         await client.query(`
             CREATE TABLE IF NOT EXISTS selections (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,6 +111,7 @@ const initDb = async () => {
             );
         `);
 
+        // Admin Seed
         const userCheck = await client.query('SELECT * FROM users LIMIT 1');
         if (userCheck.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
@@ -112,6 +127,7 @@ const initDb = async () => {
 
 // --- ROUTY ---
 
+// LOGIN
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -129,6 +145,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// DASHBOARD
 app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
@@ -147,6 +164,7 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     }
 });
 
+// TWORZENIE ALBUMU
 app.post('/api/albums', authenticateToken, async (req, res) => {
     const { title, clientName } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
@@ -161,7 +179,7 @@ app.post('/api/albums', authenticateToken, async (req, res) => {
     }
 });
 
-// ZMODYFIKOWANY UPLOAD (BEZ ZNAKU WODNEGO)
+// UPLOAD ZDJĘĆ
 app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, res) => {
     const { albumId } = req.body;
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Brak plików' });
@@ -173,8 +191,6 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
         const results = [];
         
         for (const file of req.files) {
-            // Tylko rotacja (naprawa zdjęć pionowych) i lekka kompresja
-            // Usuwamy .composite() czyli znak wodny
             const finalBuffer = await sharp(file.buffer)
                 .rotate()
                 .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true }) 
@@ -205,6 +221,7 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
     }
 });
 
+// POBIERANIE GALERII (DLA KLIENTA)
 app.get('/api/gallery/:token', async (req, res) => {
     try {
         const albumRes = await pool.query('SELECT id, title, client_name, status FROM albums WHERE access_token = $1', [req.params.token]);
@@ -221,14 +238,16 @@ app.get('/api/gallery/:token', async (req, res) => {
     }
 });
 
+// ZAPIS WYBORU + POWIADOMIENIE EMAIL DO FOTOGRAFA
 app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
     try {
-        const albumCheck = await client.query('SELECT id, status FROM albums WHERE access_token = $1', [token]);
+        const albumCheck = await client.query('SELECT a.id, a.title, a.client_name, u.email as photographer_email FROM albums a JOIN users u ON a.user_id = u.id WHERE access_token = $1', [token]);
         if (albumCheck.rows.length === 0) throw new Error('Błędny token');
         
-        const albumId = albumCheck.rows[0].id;
+        const album = albumCheck.rows[0];
+        const albumId = album.id;
         
         await client.query('BEGIN');
         await client.query('DELETE FROM selections WHERE album_id = $1', [albumId]);
@@ -236,8 +255,22 @@ app.post('/api/select', async (req, res) => {
         for (const pid of photoIds) {
             await client.query('INSERT INTO selections (album_id, photo_id) VALUES ($1, $2)', [albumId, pid]);
         }
-        
         await client.query('COMMIT');
+
+        // --- WYSYŁKA MAILA DO FOTOGRAFA ---
+        try {
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: album.photographer_email, // Wysyłamy do właściciela albumu
+                subject: `📸 Klient ${album.client_name} zakończył wybór!`,
+                text: `Cześć! Klient w albumie "${album.title}" wybrał właśnie ${photoIds.length} zdjęć. Zaloguj się do panelu, aby zobaczyć szczegóły.`
+            });
+            console.log('Powiadomienie wysłane do fotografa');
+        } catch (mailErr) {
+            console.error('Nie udało się wysłać powiadomienia:', mailErr);
+            // Nie blokujemy odpowiedzi dla klienta, jeśli mail nie wyjdzie
+        }
+
         res.json({ success: true });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -247,10 +280,40 @@ app.post('/api/select', async (req, res) => {
     }
 });
 
+// --- NOWOŚĆ: RĘCZNE WYSYŁANIE LINKU DO KLIENTA ---
+app.post('/api/send-link', authenticateToken, async (req, res) => {
+    const { clientEmail, albumTitle, link } = req.body;
+    
+    if(!clientEmail) return res.status(400).json({ error: 'Brak maila' });
+
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: clientEmail,
+            subject: `Twoja galeria zdjęć: ${albumTitle}`,
+            html: `
+                <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                    <h2>Dzień dobry!</h2>
+                    <p>Twoja galeria zdjęć z sesji <strong>${albumTitle}</strong> jest już gotowa.</p>
+                    <p>Kliknij poniższy przycisk, aby obejrzeć zdjęcia i wybrać swoje ulubione ujęcia:</p>
+                    <a href="${link}" style="background: #c5a059; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Otwórz Galerię</a>
+                    <p>Pozdrawiam,<br>Twój Fotograf</p>
+                </div>
+            `
+        });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Błąd wysyłania maila: ' + err.message });
+    }
+});
+
+// FALLBACK
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// START
 initDb().then(() => {
     app.listen(PORT, () => console.log(`Serwer start na porcie ${PORT}`));
 });
