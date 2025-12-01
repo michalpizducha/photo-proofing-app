@@ -124,11 +124,19 @@
         </header>
         <div class="card fade-in" style="max-width:800px; margin:0 auto;">
             <h2 style="text-align:center; margin-bottom:30px;">Utwórz Nową Galerię</h2>
+            
             <form onsubmit="event.preventDefault(); app.createAlbum()">
                 <label>Nazwa Sesji</label>
                 <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required>
+                
                 <label>Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
+
+                <label>Email Klienta (Automatyczna wysyłka)</label>
+                <input type="email" id="clientEmailUpload" placeholder="klient@example.com (opcjonalne)">
+                <p style="font-size: 12px; color: #666; margin-top: -15px; margin-bottom: 20px;">
+                    Jeśli wpiszesz tu email, link do galerii zostanie wysłany automatycznie po wgraniu zdjęć.
+                </p>
                 <div style="border: 2px dashed #ddd; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
                     <p style="font-size: 1.1rem; color: #555;">Wybierz zdjęcia (JPG)</p>
                     <input type="file" id="files" multiple accept="image/jpeg" required style="border:none; background:transparent;">
@@ -239,7 +247,7 @@
                 } catch (err) { console.error(err); }
             },
 
-            // --- WYSYŁANIE MAILA (SERVER-SIDE) ---
+            // --- WYSYŁANIE MAILA Z DASHBOARDU (RĘCZNE) ---
             async sendEmail(id, title, link, btnElement) {
                 const emailInput = document.getElementById(`mail-${id}`);
                 const email = emailInput.value;
@@ -262,40 +270,85 @@
                     const data = await res.json();
                     if(data.success) {
                         alert(`Wysłano wiadomość do: ${email}`);
-                        emailInput.value = ''; // Wyczyść pole
+                        emailInput.value = ''; 
                     } else {
                         throw new Error(data.error || 'Błąd wysyłania');
                     }
                 } catch (err) {
-                    alert('Nie udało się wysłać maila. Sprawdź konfigurację hasła w Renderze.');
+                    alert('Nie udało się wysłać maila: ' + err.message);
                 } finally {
                     btnElement.innerText = originalText;
                     btnElement.disabled = false;
                 }
             },
 
+            // --- TWORZENIE ALBUMU (Z AUTOMATYCZNĄ WYSYŁKĄ) ---
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
-                btn.disabled = true; btn.innerText = "Przetwarzanie...";
+                const statusDiv = document.getElementById('upload-status');
+                btn.disabled = true; 
+                btn.innerText = "Tworzenie albumu...";
+                
                 try {
                     const title = document.getElementById('albumTitle').value;
                     const clientName = document.getElementById('clientName').value;
-                    const res1 = await fetch(API + '/albums', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ title, clientName }) });
+                    const clientEmail = document.getElementById('clientEmailUpload').value; // Pobieramy email
+
+                    // 1. Tworzenie albumu w bazie
+                    const res1 = await fetch(API + '/albums', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, 
+                        body: JSON.stringify({ title, clientName }) 
+                    });
                     const albumData = await res1.json();
                     const albumId = albumData[0].id;
+                    const accessToken = albumData[0].access_token; // Potrzebny do linku
 
+                    // 2. Upload zdjęć
                     const files = document.getElementById('files').files;
                     const formData = new FormData();
                     formData.append('albumId', albumId);
                     for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
 
-                    document.getElementById('upload-status').innerText = "Wysyłanie...";
-                    const res2 = await fetch(API + '/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.state.jwt }, body: formData });
+                    btn.innerText = "Wysyłanie zdjęć (może to chwilę potrwać)...";
+                    statusDiv.innerText = "Proszę czekać, trwa przesyłanie zdjęć...";
                     
-                    if(res2.ok) { alert('Sukces!'); this.loadDashboard(); } 
-                    else throw new Error('Błąd uploadu');
-                } catch (err) { alert(err.message); } 
-                finally { btn.disabled = false; btn.innerText = "Rozpocznij Upload"; }
+                    const res2 = await fetch(API + '/upload', { 
+                        method: 'POST', 
+                        headers: { 'Authorization': 'Bearer ' + this.state.jwt }, 
+                        body: formData 
+                    });
+                    
+                    if(res2.ok) { 
+                        // 3. AUTOMATYCZNA WYSYŁKA MAILA (jeśli podano email)
+                        if (clientEmail) {
+                            statusDiv.innerText = "Zdjęcia wgrane! Wysyłanie maila do klienta...";
+                            const link = window.location.origin + '/gallery/' + accessToken;
+                            
+                            await fetch(API + '/send-link', {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ' + this.state.jwt 
+                                },
+                                body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link })
+                            });
+                            alert('Sukces! Galeria utworzona i link wysłany do klienta: ' + clientEmail);
+                        } else {
+                            alert('Sukces! Galeria utworzona (bez wysyłania maila).');
+                        }
+                        
+                        this.loadDashboard(); 
+                    } else {
+                        throw new Error('Błąd uploadu');
+                    }
+                } catch (err) { 
+                    alert(err.message); 
+                } finally { 
+                    btn.disabled = false; 
+                    btn.innerText = "Rozpocznij Upload"; 
+                    statusDiv.innerText = "";
+                }
             },
 
             async loadGallery(token) {
