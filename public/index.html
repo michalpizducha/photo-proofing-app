@@ -1,0 +1,67 @@
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<script>
+    const API = '/api'; // Prefix API
+    
+    // Prosty router widoków
+    const router = {
+        views: ['login', 'dashboard', 'upload', 'gallery'],
+        go(viewId) {
+            this.views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+        }
+    };
+
+    const app = {
+        state: {
+            jwt: localStorage.getItem('photo_jwt'), // Trwałość logowania
+            selected: new Set() // Zbiór wybranych ID zdjęć (Set gwarantuje unikalność)
+        },
+
+        // Ulepszona funkcja obsługi błędów
+        handleError(err) {
+            console.error(err);
+            // Zamiast alert(), używamy customowego dymka (Toast) - implementacja w CSS
+            this.showToast(err.message || 'Wystąpił nieoczekiwany błąd', 'error');
+        },
+
+        // Logika "Toggle" - Dodawanie/Usuwanie wyboru
+        toggleSelection(id) {
+            if (this.state.selected.has(id)) {
+                this.state.selected.delete(id);
+            } else {
+                this.state.selected.add(id);
+            }
+            this.renderSelectionState(); // Aktualizacja DOM
+        },
+
+        // Renderowanie z wirtualizacją (uproszczoną) - budowanie HTML w pamięci
+        renderGallery(photos) {
+            const grid = document.getElementById('grid');
+            const fragment = document.createDocumentFragment(); // Optymalizacja renderowania
+            
+            photos.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'photo-card';
+                el.id = `photo-${p.id}`;
+                el.onclick = () => this.toggleSelection(p.id);
+                
+                // Struktura Anti-Theft
+                el.innerHTML = `
+                    <div class="img-wrapper">
+                        <img src="${p.proof_url}" loading="lazy" alt="Proof" oncontextmenu="return false;">
+                        <div class="overlay">
+                            <span class="icon">✓</span>
+                        </div>
+                    </div>
+                `;
+                fragment.appendChild(el);
+            });
+            
+            grid.innerHTML = '';
+            grid.appendChild(fragment);
+            this.renderSelectionState();
+        }
+    };
+</script>

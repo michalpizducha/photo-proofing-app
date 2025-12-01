@@ -1,0 +1,124 @@
+/* Zmienne dla łatwej zmiany brandingu */
+:root {
+    --primary: #2563eb; /* Niebieski Professional */
+    --success: #16a34a; /* Zielony Zatwierdzenia */
+    --bg: #f8fafc;
+    --surface: #ffffff;
+}
+
+/* 1. Zabezpieczenie przed Drag & Drop i zaznaczaniem */
+img {
+    pointer-events: none; /* Mysz "nie widzi" obrazka - nie da się go przeciągnąć na pulpit */
+    user-select: none;    /* Nie da się zaznaczyć obrazka jako tekstu */
+    -webkit-user-drag: none;
+}
+
+/* 2. Grid Responsywny (Automagiczne skalowanie) */
+.gallery-grid {
+    display: grid;
+    /* Kolumny o szerokości min. 250px, wypełniające całą szerokość */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+/* 3. Overlay Wyboru - To w ten element klika użytkownik, a nie w zdjęcie */
+.photo-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1; /* Kwadratowe kafelki */
+    background: #e2e8f0; /* Kolor tła podczas ładowania (Placeholder) */
+}
+
+.photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Cropowanie do kwadratu (center) */
+    transition: transform 0.3s ease;
+}
+
+/* Efekt "Zoom" przy wyborze */
+.photo-card.selected img {
+    transform: scale(1.05);
+}
+
+.overlay {
+    position: absolute;
+    inset: 0; /* top:0, right:0, bottom:0, left:0 */
+    background: rgba(37, 99, 235, 0.6); /* Półprzezroczysty niebieski */
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pokazujemy overlay tylko gdy zdjęcie jest wybrane */
+.photo-card.selected.overlay {
+    opacity: 1;
+}
+
+/* Zmienne dla łatwej zmiany brandingu */
+:root {
+    --primary: #2563eb; /* Niebieski Professional */
+    --success: #16a34a; /* Zielony Zatwierdzenia */
+    --bg: #f8fafc;
+    --surface: #ffffff;
+}
+
+/* 1. Zabezpieczenie przed Drag & Drop i zaznaczaniem */
+img {
+    pointer-events: none; /* Mysz "nie widzi" obrazka - nie da się go przeciągnąć na pulpit */
+    user-select: none;    /* Nie da się zaznaczyć obrazka jako tekstu */
+    -webkit-user-drag: none;
+}
+
+/* 2. Grid Responsywny (Automagiczne skalowanie) */
+.gallery-grid {
+    display: grid;
+    /* Kolumny o szerokości min. 250px, wypełniające całą szerokość */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+/* 3. Overlay Wyboru - To w ten element klika użytkownik, a nie w zdjęcie */
+.photo-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1; /* Kwadratowe kafelki */
+    background: #e2e8f0; /* Kolor tła podczas ładowania (Placeholder) */
+}
+
+.photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Cropowanie do kwadratu (center) */
+    transition: transform 0.3s ease;
+}
+
+/* Efekt "Zoom" przy wyborze */
+.photo-card.selected img {
+    transform: scale(1.05);
+}
+
+.overlay {
+    position: absolute;
+    inset: 0; /* top:0, right:0, bottom:0, left:0 */
+    background: rgba(37, 99, 235, 0.6); /* Półprzezroczysty niebieski */
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pokazujemy overlay tylko gdy zdjęcie jest wybrane */
+.photo-card.selected.overlay {
+    opacity: 1;
+}
+
