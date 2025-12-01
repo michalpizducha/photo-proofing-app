@@ -17,21 +17,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- NOWA, LEPSZA KONFIGURACJA POCZTY ---
+// --- NOWA KONFIGURACJA (PORT 465 SSL) ---
+// To jest zmiana, która naprawi timeout
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true dla portu 465, false dla innych
+    port: 465,        // Zmiana z 587 na 465
+    secure: true,     // Zmiana na true (wymagane dla 465)
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
     }
 });
 
-// --- KONFIGURACJA ---
+// --- RESZTA KODU BEZ ZMIAN ---
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
@@ -251,7 +249,7 @@ app.post('/api/select', async (req, res) => {
         }
         await client.query('COMMIT');
 
-        // Wysyłka do fotografa
+        // Mail do fotografa
         try {
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
