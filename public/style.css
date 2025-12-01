@@ -2,6 +2,7 @@
 :root {
     --primary: #2563eb;
     --success: #16a34a;
+    --danger: #ef4444;
     --bg: #f8fafc;
     --surface: #ffffff;
     --text-main: #1a1a1a;
@@ -9,8 +10,9 @@
     --accent: #c5a059;
     --accent-hover: #b08d45;
     --shadow: 0 10px 30px rgba(0,0,0,0.08);
-    --radius: 8px;
 }
+
+* { box-sizing: border-box; }
 
 body { 
     font-family: 'Raleway', sans-serif; 
@@ -24,14 +26,82 @@ body {
 h1, h2, h3 { 
     font-family: 'Cinzel', serif; 
     color: #111; 
-    margin: 0;
+    margin: 0 0 15px 0;
 }
 
-/* --- HERO SECTION (NOWOŚĆ) --- */
+/* --- ELEMENTY INTERFEJSU --- */
+.container { 
+    max-width: 1400px; 
+    margin: 0 auto; 
+    padding: 20px; 
+}
+
+.hidden { display: none !important; }
+.fade-in { animation: fadeIn 0.5s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- PRZYCISKI --- */
+button { 
+    background: #111; 
+    color: white; 
+    border: none; 
+    padding: 12px 24px; 
+    cursor: pointer; 
+    font-size: 13px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    font-weight: 600; 
+    border-radius: 4px;
+    transition: all 0.2s ease; 
+}
+
+button:hover { 
+    background: var(--accent); 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+}
+
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Styl przycisku usuwania */
+.btn-danger {
+    background: white !important;
+    color: var(--danger) !important;
+    border: 1px solid var(--danger) !important;
+}
+.btn-danger:hover {
+    background: var(--danger) !important;
+    color: white !important;
+}
+
+/* --- FORMULARZE I KARTY --- */
+input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.card {
+    background: var(--surface);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    max-width: 500px;
+    margin: 0 auto; 
+}
+
+/* --- HERO SECTION (DLA KLIENTA) --- */
 .hero {
-    height: 60vh;
-    background-color: #333; /* Fallback */
-    background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80'); /* Przykładowe tło */
+    height: 50vh;
+    background-color: #333;
+    background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80');
     background-size: cover;
     background-position: center;
     display: flex;
@@ -39,205 +109,137 @@ h1, h2, h3 {
     justify-content: center;
     text-align: center;
     color: white;
-    margin-bottom: -40px; /* Efekt "najścia" kart na hero */
+    margin-bottom: -50px;
     padding: 0 20px;
 }
 
-.hero-content h1 {
-    font-size: 3rem;
-    color: white;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    margin-bottom: 10px;
-}
+.hero h1 { color: white; font-size: 2.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
-.hero-content p {
-    font-size: 1.2rem;
-    opacity: 0.9;
-}
-
-/* --- KONTENER I GRID --- */
-.container { 
-    max-width: 1400px; 
-    margin: 0 auto; 
-    padding: 40px 20px; 
-}
-
+/* --- GALERIA I GRID --- */
 .gallery-container {
     background: var(--surface);
-    border-radius: 20px;
-    box-shadow: var(--shadow);
+    border-radius: 12px;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
     padding: 30px;
-    min-height: 400px;
+    min-height: 300px;
     position: relative;
     z-index: 10;
 }
 
-.gallery-header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 30px; 
-    padding-bottom: 20px;
-    border-bottom: 1px solid #eee;
-}
-
 .gallery-grid { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-    gap: 15px; 
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+    gap: 10px; 
+    margin-top: 20px;
 }
 
-/* --- ZDJĘCIA I KAFELKI --- */
+/* --- ZDJĘCIA --- */
 .photo-card { 
     position: relative; 
     cursor: pointer; 
     aspect-ratio: 2/3; 
-    overflow: hidden; 
-    border-radius: 4px;
     background: #eee; 
-    transition: transform 0.3s ease;
+    overflow: hidden;
+    border-radius: 4px;
 }
 
 .photo-card img { 
     width: 100%; 
     height: 100%; 
     object-fit: cover; 
-    transition: transform 0.6s ease; 
+    transition: transform 0.3s;
+    display: block; /* Usuwa puste przestrzenie */
 }
 
-.photo-card:hover img { 
-    transform: scale(1.05); 
-}
+.photo-card:hover img { transform: scale(1.05); }
 
-/* Wybór zdjęcia */
+/* Stan: Wybrane */
 .photo-card.selected::after { 
     content: ''; 
     position: absolute; 
     inset: 0; 
     border: 4px solid var(--accent); 
     background: rgba(197, 160, 89, 0.1);
-    z-index: 1; 
+    z-index: 2;
     pointer-events: none; 
 }
 
-/* Ikona serca */
+/* Ikona Serca */
 .heart-icon { 
     position: absolute; 
-    top: 15px; 
-    right: 15px; 
+    top: 10px; 
+    right: 10px; 
     font-size: 24px; 
     color: white; 
-    opacity: 0.7; 
-    text-shadow: 0 2px 5px rgba(0,0,0,0.3); 
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    z-index: 2; 
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    z-index: 3;
+    transition: transform 0.2s;
 }
 
 .photo-card.selected .heart-icon { 
     color: var(--accent); 
-    opacity: 1; 
     transform: scale(1.2); 
-    animation: heartBeat 0.4s;
+    opacity: 1;
 }
 
-@keyframes heartBeat {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.4); }
-    100% { transform: scale(1.2); }
-}
-
-/* --- PRZYCISKI --- */
-button { 
-    background: #111; 
-    color: white; 
-    border: none; 
-    padding: 14px 28px; 
-    cursor: pointer; 
-    font-size: 13px; 
-    text-transform: uppercase; 
-    letter-spacing: 2px; 
-    font-weight: 600; 
-    transition: all 0.3s ease; 
-}
-
-button:hover { 
-    background: var(--accent); 
-    transform: translateY(-2px); 
-    box-shadow: 0 5px 15px rgba(197, 160, 89, 0.3); 
-}
-
-/* --- TOAST NOTIFICATIONS (ZAMIAST ALERTÓW) --- */
+/* --- TOAST NOTIFICATIONS (POPRAWIONE) --- */
 #toast-container {
     position: fixed;
     bottom: 30px;
     left: 50%;
-    transform: translateX(-50%) translateY(100px);
+    transform: translateX(-50%) translateY(100px); /* Ukryte na dole */
     background: #333;
     color: white;
-    padding: 16px 24px;
+    padding: 12px 24px;
     border-radius: 50px;
     display: flex;
     align-items: center;
     gap: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    z-index: 3000;
+    z-index: 9999;
     opacity: 0;
+    pointer-events: none; /* Ważne: żeby nie blokowało klikania gdy ukryte */
     transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 
 #toast-container.active {
     opacity: 1;
+    pointer-events: all;
     transform: translateX(-50%) translateY(0);
 }
 
 .toast-icon {
     background: var(--success);
-    width: 24px;
-    height: 24px;
+    width: 20px; 
+    height: 20px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: bold;
 }
 
-/* --- RESPONSYWNOŚĆ (MOBILE) --- */
-@media (max-width: 768px) {
-    .hero { height: 40vh; }
-    .hero-content h1 { font-size: 2rem; }
-    
-    .gallery-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
+/* --- LIGHTBOX --- */
+#lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+#lightbox.active { opacity: 1; pointer-events: all; }
+#lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; }
+.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 20px; user-select: none; }
+.lb-prev { left: 10px; } .lb-next { right: 10px; }
+.lb-close { position: absolute; top: 20px; right: 20px; font-size: 40px; color: white; cursor: pointer; }
+.lb-controls { position: absolute; bottom: 20px; z-index: 5001; }
+.lb-select-btn { border: 1px solid white; background: rgba(0,0,0,0.5); border-radius: 30px; padding: 10px 30px; }
+.lb-select-btn.active { background: var(--accent); border-color: var(--accent); }
 
-    /* Floating Action Button (FAB) */
+/* --- MOBILE --- */
+@media (max-width: 768px) {
+    .gallery-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+    
+    /* Pływający przycisk na telefonach */
     #saveBtn {
         position: fixed;
-        bottom: 20px;
+        bottom: 20px; 
         right: 20px;
-        z-index: 100;
+        z-index: 4000;
         border-radius: 50px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
         padding: 15px 25px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
 }
-
-/* --- UTILITIES --- */
-.hidden { display: none !important; }
-.fade-in { animation: fadeIn 0.5s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Lightbox styles (bez zmian większych, tylko poprawki kosmetyczne) */
-#lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 10, 10, 0.98); z-index: 2000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-#lightbox.active { opacity: 1; pointer-events: all; }
-#lightbox img { max-width: 90vw; max-height: 85vh; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
-.lb-nav:hover { background: var(--accent); }
-.lb-prev { left: 20px; } .lb-next { right: 20px; }
-.lb-close { position: absolute; top: 20px; right: 20px; font-size: 40px; color: #fff; cursor: pointer; }
-.lb-controls { position: absolute; bottom: 30px; }
-.lb-select-btn { background: transparent; border: 2px solid white; color: white; padding: 10px 30px; border-radius: 30px; }
-.lb-select-btn.active { background: var(--accent); border-color: var(--accent); }
