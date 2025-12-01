@@ -1,67 +1,311 @@
-<link rel="stylesheet" href="style.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Proofing</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
 
-<script>
-    const API = '/api'; // Prefix API
-    
-    // Prosty router widoków
-    const router = {
-        views: ['login', 'dashboard', 'upload', 'gallery'],
-        go(viewId) {
-            this.views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewId}`).classList.remove('hidden');
-        }
-    };
+    <div id="view-login" class="container">
+        <div class="card">
+            <h2>Panel Fotografa</h2>
+            <form onsubmit="event.preventDefault(); app.login()">
+                <input type="email" id="email" placeholder="Email" required value="admin@example.com">
+                <input type="password" id="password" placeholder="Hasło" required value="admin123">
+                <button type="submit">Zaloguj się</button>
+            </form>
+        </div>
+    </div>
 
-    const app = {
-        state: {
-            jwt: localStorage.getItem('photo_jwt'), // Trwałość logowania
-            selected: new Set() // Zbiór wybranych ID zdjęć (Set gwarantuje unikalność)
-        },
+    <div id="view-dashboard" class="container hidden">
+        <header>
+            <h1>Moje Sesje</h1>
+            <button onclick="app.logout()" class="btn-secondary">Wyloguj</button>
+        </header>
+        <div class="actions">
+            <button onclick="router.go('upload')">+ Nowy Album</button>
+        </div>
+        <div id="albums-list">
+            </div>
+    </div>
 
-        // Ulepszona funkcja obsługi błędów
-        handleError(err) {
-            console.error(err);
-            // Zamiast alert(), używamy customowego dymka (Toast) - implementacja w CSS
-            this.showToast(err.message || 'Wystąpił nieoczekiwany błąd', 'error');
-        },
+    <div id="view-upload" class="container hidden">
+        <header>
+            <button onclick="router.go('dashboard')" class="btn-secondary">← Wróć</button>
+            <h1>Nowy Album</h1>
+        </header>
+        <div class="card">
+            <form onsubmit="event.preventDefault(); app.createAlbum()">
+                <input type="text" id="albumTitle" placeholder="Tytuł sesji (np. Wesele Ani)" required>
+                <input type="text" id="clientName" placeholder="Nazwa klienta" required>
+                <div class="file-area">
+                    <label>Wybierz zdjęcia (JPG)</label>
+                    <input type="file" id="files" multiple accept="image/jpeg" required>
+                </div>
+                <button type="submit" id="uploadBtn">Wyślij i Utwórz</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+    </div>
 
-        // Logika "Toggle" - Dodawanie/Usuwanie wyboru
-        toggleSelection(id) {
-            if (this.state.selected.has(id)) {
-                this.state.selected.delete(id);
-            } else {
-                this.state.selected.add(id);
+    <div id="view-gallery" class="hidden">
+        <header class="gallery-header">
+            <h2 id="gallery-title">Galeria</h2>
+            <div class="gallery-actions">
+                <span id="selection-count">Wybrano: 0</span>
+                <button onclick="app.saveSelection()" class="btn-success">Zatwierdź Wybór</button>
+            </div>
+        </header>
+        <div id="grid" class="gallery-grid">
+            </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        const API = '/api';
+
+        const router = {
+            views: ['login', 'dashboard', 'upload', 'gallery'],
+            go(viewId) {
+                this.views.forEach(v => {
+                    const el = document.getElementById('view-' + v);
+                    if(el) el.classList.add('hidden');
+                });
+                const active = document.getElementById('view-' + viewId);
+                if(active) active.classList.remove('hidden');
             }
-            this.renderSelectionState(); // Aktualizacja DOM
-        },
+        };
 
-        // Renderowanie z wirtualizacją (uproszczoną) - budowanie HTML w pamięci
-        renderGallery(photos) {
-            const grid = document.getElementById('grid');
-            const fragment = document.createDocumentFragment(); // Optymalizacja renderowania
-            
-            photos.forEach(p => {
-                const el = document.createElement('div');
-                el.className = 'photo-card';
-                el.id = `photo-${p.id}`;
-                el.onclick = () => this.toggleSelection(p.id);
-                
-                // Struktura Anti-Theft
-                el.innerHTML = `
-                    <div class="img-wrapper">
-                        <img src="${p.proof_url}" loading="lazy" alt="Proof" oncontextmenu="return false;">
-                        <div class="overlay">
-                            <span class="icon">✓</span>
+        const app = {
+            state: {
+                jwt: localStorage.getItem('photo_jwt'),
+                selected: new Set(),
+                currentAlbumToken: null
+            },
+
+            init() {
+                // Sprawdzamy czy to klient (link z tokenem) czy fotograf
+                const path = window.location.pathname;
+                if (path.startsWith('/gallery/')) {
+                    const token = path.split('/')[2];
+                    this.loadGallery(token);
+                } else {
+                    if (this.state.jwt) {
+                        this.loadDashboard();
+                    } else {
+                        router.go('login');
+                    }
+                }
+            },
+
+            async login() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                try {
+                    const res = await fetch(API + '/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    
+                    this.state.jwt = data.token;
+                    localStorage.setItem('photo_jwt', data.token);
+                    this.loadDashboard();
+                } catch (err) {
+                    alert('Błąd logowania: ' + err.message);
+                }
+            },
+
+            logout() {
+                localStorage.removeItem('photo_jwt');
+                this.state.jwt = null;
+                router.go('login');
+            },
+
+            async loadDashboard() {
+                router.go('dashboard');
+                try {
+                    const res = await fetch(API + '/admin/albums', {
+                        headers: { 'Authorization': 'Bearer ' + this.state.jwt }
+                    });
+                    const albums = await res.json();
+                    const container = document.getElementById('albums-list');
+                    container.innerHTML = albums.map(a => `
+                        <div class="card album-item">
+                            <h3>${a.title}</h3>
+                            <p>Klient: ${a.client_name}</p>
+                            <p>Zdjęć: ${a.photo_count || 0} | Wybrano: ${a.selection_count || 0}</p>
+                            <div class="links">
+                                Link dla klienta: <a href="/gallery/${a.access_token}" target="_blank">Otwórz</a>
+                            </div>
                         </div>
-                    </div>
-                `;
-                fragment.appendChild(el);
-            });
-            
-            grid.innerHTML = '';
-            grid.appendChild(fragment);
-            this.renderSelectionState();
+                    `).join('');
+                } catch (err) {
+                    console.error(err);
+                }
+            },
+
+            async createAlbum() {
+                const btn = document.getElementById('uploadBtn');
+                btn.disabled = true;
+                btn.innerText = "Przetwarzanie...";
+                
+                try {
+                    // 1. Stwórz album
+                    const title = document.getElementById('albumTitle').value;
+                    const clientName = document.getElementById('clientName').value;
+                    
+                    const res1 = await fetch(API + '/albums', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + this.state.jwt 
+                        },
+                        body: JSON.stringify({ title, clientName })
+                    });
+                    const albumData = await res1.json();
+                    const albumId = albumData[0].id;
+
+                    // 2. Wyślij zdjęcia
+                    const files = document.getElementById('files').files;
+                    const formData = new FormData();
+                    formData.append('albumId', albumId);
+                    for (let i = 0; i < files.length; i++) {
+                        formData.append('photos', files[i]);
+                    }
+
+                    document.getElementById('upload-status').innerText = "Wysyłanie zdjęć... to może chwilę potrwać.";
+
+                    const res2 = await fetch(API + '/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + this.state.jwt },
+                        body: formData
+                    });
+                    
+                    if(res2.ok) {
+                        alert('Album utworzony!');
+                        this.loadDashboard();
+                    } else {
+                        throw new Error('Błąd uploadu');
+                    }
+
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "Wyślij i Utwórz";
+                }
+            },
+
+            // --- Logika Klienta ---
+
+            async loadGallery(token) {
+                this.state.currentAlbumToken = token;
+                router.go('gallery');
+                try {
+                    const res = await fetch(API + '/gallery/' + token);
+                    if(!res.ok) throw new Error('Błąd ładowania galerii');
+                    const data = await res.json();
+                    
+                    document.getElementById('gallery-title').innerText = data.album[0].title;
+                    
+                    // Załaduj istniejące wybory
+                    this.state.selected = new Set(data.selections);
+                    this.renderGrid(data.photos);
+                    this.updateCounter();
+
+                } catch (err) {
+                    document.body.innerHTML = "<h1>Nie znaleziono galerii lub link wygasł.</h1>";
+                }
+            },
+
+            renderGrid(photos) {
+                const grid = document.getElementById('grid');
+                grid.innerHTML = photos.map(p => {
+                    const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
+                    return `
+                        <div class="photo-card ${isSelected}" onclick="app.toggleSelection('${p.id}', this)">
+                            <div class="img-wrapper">
+                                <img src="${p.proof_url}" loading="lazy" oncontextmenu="return false;">
+                                <div class="overlay">✅</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            toggleSelection(id, cardElement) {
+                if (this.state.selected.has(id)) {
+                    this.state.selected.delete(id);
+                    cardElement.classList.remove('selected');
+                } else {
+                    this.state.selected.add(id);
+                    cardElement.classList.add('selected');
+                }
+                this.updateCounter();
+            },
+
+            updateCounter() {
+                document.getElementById('selection-count').innerText = `Wybrano: ${this.state.selected.size}`;
+            },
+
+            async saveSelection() {
+                const token = this.state.currentAlbumToken;
+                try {
+                    await fetch(API + '/select', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: token,
+                            photoIds: Array.from(this.state.selected)
+                        })
+                    });
+                    alert('Twój wybór został zapisany! Możesz zamknąć stronę.');
+                } catch (err) {
+                    alert('Błąd zapisu');
+                }
+            }
+        };
+
+        // Start aplikacji
+        // Obsługa routingu frontendowego dla ścieżek typu /gallery/TOKEN
+        const path = window.location.pathname;
+        if(path === '/' || path === '/index.html') {
+             app.init();
+        } else if (path.startsWith('/gallery/')) {
+             app.init();
+        } else {
+             // Fallback do logowania
+             app.init();
         }
-    };
-</script>
+    </script>
+
+    <style>
+        /* Prosty styl, żeby to wyglądało czytelnie */
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; padding: 20px; }
+        .hidden { display: none !important; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        input { display: block; width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;}
+        button { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #1d4ed8; }
+        .btn-secondary { background: #64748b; }
+        .btn-success { background: #16a34a; }
+        
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .photo-card { aspect-ratio: 1; background: #ddd; position: relative; cursor: pointer; border-radius: 8px; overflow: hidden; }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .photo-card.selected { outline: 4px solid #2563eb; }
+        .photo-card .overlay { position: absolute; inset: 0; background: rgba(37, 99, 235, 0.5); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; opacity: 0; }
+        .photo-card.selected .overlay { opacity: 1; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    </style>
+</body>
+</html>
