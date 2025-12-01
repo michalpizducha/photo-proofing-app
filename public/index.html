@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strefa Klienta | Julia Berlik Foto</title>
+    <title>Julia Berlik Foto | Strefa Klienta</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body oncontextmenu="return false;">
 
     <div id="toast-container">
-        <div class="toast-icon">✓</div>
         <div id="toast-text">Komunikat</div>
     </div>
 
@@ -24,11 +23,14 @@
         </div>
     </div>
 
-    <div id="view-login" class="container hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
-        <div class="card" style="text-align:center;">
-            <img src="logo.jpg" alt="Julia Berlik Foto" class="brand-logo">
-            <h1>Strefa Fotografa</h1>
-            <p style="color:#888; margin-bottom:30px;">Zaloguj się do panelu</p>
+    <div class="brand-title">
+        Julia Berlik <span>Foto</span>
+    </div>
+
+    <div id="view-login" class="container hidden">
+        <div class="card">
+            <h2>Panel Fotografa</h2>
+            <p style="color:#888; margin-bottom:20px;">Zaloguj się, aby zarządzać sesjami</p>
             <form onsubmit="event.preventDefault(); app.login()">
                 <input type="email" id="email" placeholder="Email" required value="admin@example.com">
                 <input type="password" id="password" placeholder="Hasło" required value="admin123">
@@ -38,14 +40,8 @@
     </div>
 
     <div id="view-dashboard" class="container hidden fade-in">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px; border-bottom:1px solid #eee; padding-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:20px;">
-                <img src="logo.jpg" style="height:50px;">
-                <div>
-                    <h1>Moje Sesje</h1>
-                    <p>Zarządzaj albumami</p>
-                </div>
-            </div>
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+            <h3>Zarządzanie Sesjami</h3>
             <div>
                 <button onclick="router.go('upload')">+ Nowa Sesja</button>
                 <button onclick="app.logout()" style="background:#eee; color:#333; margin-left:10px;">Wyloguj</button>
@@ -57,60 +53,45 @@
     <div id="view-upload" class="container hidden fade-in">
         <button onclick="router.go('dashboard')" style="background:transparent; color:#333; border:1px solid #ddd; margin-bottom:20px;">← Wróć</button>
         <div class="card" style="max-width:800px;">
-            <h2 style="text-align:center;">Utwórz Sesję</h2>
+            <h2>Utwórz Sesję</h2>
             <form onsubmit="event.preventDefault(); app.createAlbum()">
                 <label>Nazwa Sesji</label>
-                <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required>
-                
+                <input type="text" id="albumTitle" placeholder="np. Ślub Ani" required>
                 <label>Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
-
-                <label>Email Klienta (Opcjonalnie)</label>
-                <input type="email" id="clientEmailUpload" placeholder="Jeśli wpiszesz, wyślemy link automatycznie">
-
-                <div style="border:2px dashed #ddd; padding:40px; text-align:center; margin:20px 0;">
-                    <p>Wybierz zdjęcia (JPG)</p>
+                <label>Email (Opcjonalnie)</label>
+                <input type="email" id="clientEmailUpload" placeholder="Jeśli podasz, wyślemy link">
+                
+                <div style="border:2px dashed #ddd; padding:30px; margin:20px 0;">
+                    <p>Wybierz pliki JPG</p>
                     <input type="file" id="files" multiple accept="image/jpeg" required>
                 </div>
                 <button type="submit" id="uploadBtn" style="width:100%">Rozpocznij Upload</button>
             </form>
-            <div id="upload-status" style="margin-top:20px; text-align:center; font-weight:bold;"></div>
+            <div id="upload-status" style="margin-top:20px; font-weight:bold;"></div>
         </div>
     </div>
 
     <div id="view-gallery" class="hidden">
-        <div class="hero">
-            <div class="hero-content fade-in">
-                <img src="logo.jpg" class="hero-logo" alt="Logo">
-                <h1 id="gallery-hero-title">Galeria</h1>
-                <p>Wybierz swoje ulubione ujęcia</p>
-            </div>
-        </div>
-
-        <div class="container" style="margin-top:-60px;">
+        <div class="container">
             <div class="gallery-container fade-in">
                 <header class="gallery-header">
                     <div>
-                        <h2 id="gallery-title" style="font-size:1.5rem;">Tytuł</h2>
-                        <p style="font-size:0.9rem; color:#888;">Kliknij serce, aby wybrać zdjęcie.</p>
+                        <h2 id="gallery-title" style="font-size:1.5rem; margin:0;">Tytuł</h2>
+                        <p style="font-size:0.9rem; color:#888;">Kliknij serce na zdjęciu, aby je wybrać.</p>
                     </div>
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
-                        <span id="selection-count" style="font-weight:bold; color:var(--accent);">0 wybranych</span>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                        <span id="selection-count" style="font-weight:bold; color:var(--accent); font-size:1.2rem;">0 wybranych</span>
                         <button id="saveBtn" onclick="app.saveSelection()">Zatwierdź Wybór</button>
                     </div>
                 </header>
 
                 <div class="filters">
                     <button class="filter-btn active" onclick="app.setFilter('all')">Wszystkie</button>
-                    <button class="filter-btn" onclick="app.setFilter('selected')">Wybrane ❤</button>
+                    <button class="filter-btn" onclick="app.setFilter('selected')">Tylko Wybrane ❤</button>
                 </div>
                 
-                <div id="grid" class="gallery-grid">
-                    <div class="photo-card skeleton"></div>
-                    <div class="photo-card skeleton"></div>
-                    <div class="photo-card skeleton"></div>
-                    <div class="photo-card skeleton"></div>
-                </div>
+                <div id="grid" class="gallery-grid"></div>
             </div>
         </div>
     </div>
@@ -121,9 +102,17 @@
         const router = {
             views: ['login', 'dashboard', 'upload', 'gallery'],
             go(viewId) {
-                this.views.forEach(v => document.getElementById('view-' + v)?.classList.add('hidden'));
-                document.getElementById('view-' + viewId)?.classList.remove('hidden');
-                window.scrollTo(0,0);
+                // Ukryj wszystkie
+                this.views.forEach(v => {
+                    const el = document.getElementById('view-' + v);
+                    if(el) el.classList.add('hidden');
+                });
+                // Pokaż wybrany
+                const active = document.getElementById('view-' + viewId);
+                if(active) active.classList.remove('hidden');
+                
+                // Ukryj branding w widoku galerii (opcjonalne, dla czystości)
+                if(viewId === 'gallery') document.querySelector('.brand-title').style.display = 'block';
             }
         };
 
@@ -131,6 +120,7 @@
             state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
 
             init() {
+                // Obsługa klawiszy
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
                     if (e.key === 'ArrowLeft') this.prevPhoto();
@@ -139,10 +129,13 @@
                     if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
 
+                // ROUTING - To naprawia błąd widoczności logowania dla klienta
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
-                    this.loadGallery(token);
+                    if(token) {
+                        this.loadGallery(token);
+                    }
                 } else {
                     if (this.state.jwt) this.loadDashboard(); else router.go('login');
                 }
@@ -151,12 +144,7 @@
             showToast(message, type = 'success') {
                 const toast = document.getElementById('toast-container');
                 const text = document.getElementById('toast-text');
-                const icon = toast.querySelector('.toast-icon');
-                
                 text.innerText = message;
-                icon.innerHTML = type === 'success' ? '✓' : '!';
-                icon.style.background = type === 'success' ? 'var(--success)' : 'var(--danger)';
-                
                 toast.classList.add('active');
                 setTimeout(() => { toast.classList.remove('active'); }, 3500);
             },
@@ -184,28 +172,27 @@
                     const container = document.getElementById('albums-list');
                     
                     if(albums.length === 0) {
-                        container.innerHTML = '<div style="text-align:center; padding:40px; color:#888;"><p>Brak albumów.</p></div>';
+                        container.innerHTML = '<p style="text-align:center; color:#888;">Brak albumów.</p>';
                         return;
                     }
 
                     container.innerHTML = albums.map(a => {
                         return `
-                        <div style="background:white; padding:20px; margin-bottom:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center;">
+                        <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                             <div>
                                 <h3 style="margin-bottom:5px;">${a.title}</h3>
                                 <p style="color:#666; font-size:0.9rem;">${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:10px;">
-                                <button onclick="app.copyFilenames('${a.id}')" class="btn-copy" style="padding:10px 20px; font-size:12px;">Kopiuj nazwy</button>
-                                <a href="/gallery/${a.access_token}" target="_blank"><button style="padding:10px 20px; font-size:12px;">Podgląd</button></a>
-                                <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="padding:10px 20px; font-size:12px;">Usuń</button>
+                                <button onclick="app.copyFilenames('${a.id}')" class="btn-copy" style="font-size:11px;">Kopiuj listę</button>
+                                <a href="/gallery/${a.access_token}" target="_blank"><button style="font-size:11px;">Podgląd</button></a>
+                                <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="font-size:11px;">Usuń</button>
                             </div>
                         </div>
                     `}).join('');
                 } catch (err) { console.error(err); }
             },
 
-            // --- KOPIOWANIE NAZW PLIKÓW ---
             async copyFilenames(albumId) {
                 try {
                     const res = await fetch(API + '/admin/albums/' + albumId + '/files', { 
@@ -216,28 +203,24 @@
                     if(data.filenames && data.filenames.length > 0) {
                         const textToCopy = data.filenames.join(', ');
                         navigator.clipboard.writeText(textToCopy);
-                        this.showToast('Skopiowano listę do schowka!', 'success');
+                        this.showToast('Skopiowano listę plików!', 'success');
                     } else {
                         this.showToast('Brak wybranych zdjęć.', 'error');
                     }
-                } catch (err) {
-                    this.showToast('Błąd kopiowania.', 'error');
-                }
+                } catch (err) { this.showToast('Błąd kopiowania.', 'error'); }
             },
 
             async deleteAlbum(id) {
-                if(!confirm('Czy na pewno chcesz usunąć ten album? Usuniesz też wszystkie zdjęcia i wybory klienta.')) return;
+                if(!confirm('Czy na pewno chcesz usunąć ten album?')) return;
                 try {
                     const res = await fetch(API + '/albums/' + id, {
                         method: 'DELETE',
                         headers: { 'Authorization': 'Bearer ' + this.state.jwt }
                     });
                     if(res.ok) {
-                        this.showToast('Album został usunięty.', 'success');
+                        this.showToast('Album usunięty.', 'success');
                         this.loadDashboard();
-                    } else {
-                        throw new Error('Błąd usuwania');
-                    }
+                    } else { throw new Error('Błąd usuwania'); }
                 } catch (err) { this.showToast('Błąd: ' + err.message, 'error'); }
             },
 
@@ -256,15 +239,18 @@
                     const files = document.getElementById('files').files;
                     const formData = new FormData();
                     formData.append('albumId', albumId);
+                    
+                    // Upload
                     for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
-                    statusDiv.innerText = "Wysyłanie zdjęć (nie zamykaj)...";
+                    statusDiv.innerText = "Wysyłanie zdjęć... Proszę czekać.";
                     const res2 = await fetch(API + '/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.state.jwt }, body: formData });
+                    
                     if(res2.ok) { 
                         if (clientEmail) {
                             statusDiv.innerText = "Wysyłanie maila...";
                             const link = window.location.origin + '/gallery/' + accessToken;
                             await fetch(API + '/send-link', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link }) });
-                            this.showToast('Galeria utworzona i wysłana!', 'success');
+                            this.showToast('Wysłano do klienta!', 'success');
                         } else { this.showToast('Gotowe!', 'success'); }
                         this.loadDashboard(); 
                     } else throw new Error('Błąd uploadu');
@@ -275,9 +261,9 @@
                 this.state.currentAlbumToken = token;
                 router.go('gallery');
                 
-                // Reset widoku
                 const grid = document.getElementById('grid');
-                grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join(''); // Skeleton loading
+                // Skeletony
+                grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join('');
 
                 try {
                     const res = await fetch(API + '/gallery/' + token);
@@ -285,7 +271,6 @@
                     const data = await res.json();
                     
                     document.getElementById('gallery-title').innerText = data.album[0].title;
-                    document.getElementById('gallery-hero-title').innerText = data.album[0].title;
                     
                     this.state.selected = new Set(data.selections);
                     this.state.photos = data.photos;
@@ -296,10 +281,12 @@
                         this.showToast('Witaj! Wybierz zdjęcia klikając serce.', 'success');
                         localStorage.setItem('visited_' + token, 'true');
                     }
-                } catch (err) { document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; }
+                } catch (err) { 
+                    // Jeśli błąd, ukryj wszystko i pokaż komunikat
+                    document.getElementById('view-gallery').innerHTML = "<div class='container' style='text-align:center; padding:100px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; 
+                }
             },
 
-            // --- LOGIKA FILTRÓW ---
             setFilter(type) {
                 this.state.viewFilter = type;
                 document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
@@ -316,7 +303,7 @@
                 }
 
                 if (photosToShow.length === 0) {
-                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć w tym widoku.</p>';
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć do wyświetlenia.</p>';
                     return;
                 }
 
@@ -391,7 +378,7 @@
 
             async saveSelection() {
                 const btn = document.getElementById('saveBtn');
-                btn.innerText = "Zapisywanie..."; btn.disabled = true;
+                btn.innerText = "Wysyłanie..."; btn.disabled = true;
                 const token = this.state.currentAlbumToken;
                 try {
                     await fetch(API + '/select', { 
@@ -399,7 +386,7 @@
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) 
                     });
-                    this.showToast('Wybór wysłany do fotografa!', 'success');
+                    this.showToast('Wybór zapisany i wysłany!', 'success');
                 } catch (err) { 
                     this.showToast('Błąd zapisu.', 'error'); 
                 } finally { 
