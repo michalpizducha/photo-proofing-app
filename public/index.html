@@ -36,7 +36,7 @@
             color: white; 
             border: none; 
             padding: 12px 24px; 
-            border-radius: 2px; /* Bardziej "ostry", elegancki kształt */
+            border-radius: 2px; 
             cursor: pointer; 
             font-size: 14px; 
             text-transform: uppercase; 
@@ -421,8 +421,6 @@
             },
 
             toggleSelection(id, cardElement) {
-                // Event bubbling stop is not needed if layout separates click areas, 
-                // but here click on select-btn is separate from img
                 if (this.state.selected.has(id)) {
                     this.state.selected.delete(id);
                     cardElement.classList.remove('selected');
@@ -453,4 +451,29 @@
             async saveSelection() {
                 const token = this.state.currentAlbumToken;
                 try {
-                    await fetch(API + '/select',
+                    await fetch(API + '/select', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: token,
+                            photoIds: Array.from(this.state.selected)
+                        })
+                    });
+                    alert('Dziękujemy! Twój wybór został wysłany do fotografa.');
+                } catch (err) {
+                    alert('Błąd zapisu');
+                }
+            }
+        };
+
+        const path = window.location.pathname;
+        if(path === '/' || path === '/index.html') {
+             app.init();
+        } else if (path.startsWith('/gallery/')) {
+             app.init();
+        } else {
+             app.init();
+        }
+    </script>
+</body>
+</html>
