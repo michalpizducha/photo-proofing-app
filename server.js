@@ -20,7 +20,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
-// Najpierw API, potem pliki statyczne
 app.use(express.static('public'));
 
 // Baza Danych
@@ -102,7 +101,6 @@ const initDb = async () => {
             );
         `);
 
-        // Admin Seed
         const userCheck = await client.query('SELECT * FROM users LIMIT 1');
         if (userCheck.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
@@ -118,7 +116,6 @@ const initDb = async () => {
 
 // --- ROUTY (API) ---
 
-// 1. LOGIN (To jest to, czego brakowało lub było zepsute!)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -136,7 +133,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 2. Dashboard
 app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
@@ -155,7 +151,6 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     }
 });
 
-// 3. Tworzenie albumu
 app.post('/api/albums', authenticateToken, async (req, res) => {
     const { title, clientName } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
@@ -170,7 +165,7 @@ app.post('/api/albums', authenticateToken, async (req, res) => {
     }
 });
 
-// 4. Upload
+// --- POPRAWIONY UPLOAD ---
 app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, res) => {
     const { albumId } = req.body;
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Brak plików' });
@@ -181,20 +176,28 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
 
         const results = [];
         
-        // Przetwarzanie sekwencyjne
         for (const file of req.files) {
-            const width = 1200;
-            const svgWatermark = `
-            <svg width="${width}" height="${width}" viewBox="0 0 ${width} ${width}">
-                <style>
-                .txt { fill: rgba(255, 255, 255, 0.3); font-size: 100px; font-weight: 800; font-family: sans-serif; transform: rotate(-45deg); transform-origin: center; }
-                </style>
-                <text x="50%" y="50%" text-anchor="middle" class="txt">PROOF ONLY</text>
-            </svg>`;
-
-            const processedBuffer = await sharp(file.buffer)
+            // 1. Najpierw zmniejszamy zdjęcie
+            const resizedBuffer = await sharp(file.buffer)
                 .rotate()
                 .resize({ width: 1200, height: 1200, fit: 'inside' })
+                .toBuffer();
+
+            // 2. Pobieramy wymiary zmniejszonego zdjęcia
+            const metadata = await sharp(resizedBuffer).metadata();
+            const { width, height } = metadata;
+
+            // 3. Tworzymy znak wodny IDEALNIE dopasowany do wymiarów
+            const svgWatermark = `
+            <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+                <style>
+                .txt { fill: rgba(255, 255, 255, 0.3); font-size: ${Math.min(width, height) * 0.15}px; font-weight: 800; font-family: sans-serif; transform: rotate(-30deg); transform-origin: center; }
+                </style>
+                <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" class="txt">PROOF ONLY</text>
+            </svg>`;
+
+            // 4. Nakładamy
+            const finalBuffer = await sharp(resizedBuffer)
                 .composite([{ input: Buffer.from(svgWatermark), gravity: 'center' }])
                 .jpeg({ quality: 80 })
                 .toBuffer();
@@ -207,7 +210,7 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
                         else resolve(result);
                     }
                 );
-                streamifier.createReadStream(processedBuffer).pipe(stream);
+                streamifier.createReadStream(finalBuffer).pipe(stream);
             });
 
             const dbRes = await pool.query(
@@ -218,12 +221,11 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
         }
         res.json({ uploaded: results });
     } catch (err) {
-        console.error(err);
+        console.error('Upload Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 5. Galeria Klienta
 app.get('/api/gallery/:token', async (req, res) => {
     try {
         const albumRes = await pool.query('SELECT id, title, client_name, status FROM albums WHERE access_token = $1', [req.params.token]);
@@ -240,13 +242,12 @@ app.get('/api/gallery/:token', async (req, res) => {
     }
 });
 
-// 6. Zapis Wyboru
 app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
     try {
         const albumCheck = await client.query('SELECT id, status FROM albums WHERE access_token = $1', [token]);
-        if (albumCheck.rows.length === 0) throw new Error('Bły token');
+        if (albumCheck.rows.length === 0) throw new Error('Błędny token');
         
         const albumId = albumCheck.rows[0].id;
         
@@ -267,12 +268,10 @@ app.post('/api/select', async (req, res) => {
     }
 });
 
-// Fallback - musi być na końcu!
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// START
 initDb().then(() => {
     app.listen(PORT, () => console.log(`Serwer start na porcie ${PORT}`));
 });
