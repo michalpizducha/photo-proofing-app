@@ -6,230 +6,74 @@
     <title>Strefa Klienta | Premium Gallery</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        /* --- DESIGN SYSTEM PREMIUM --- */
+        /* --- DESIGN SYSTEM PREMIUM (ZACHOWANY) --- */
         :root {
             --bg: #fdfdfd;
             --surface: #ffffff;
             --text-main: #1a1a1a;
             --text-muted: #666;
-            --accent: #c5a059; /* Złoty/Beżowy - kolor premium */
+            --accent: #c5a059; 
             --accent-hover: #b08d45;
             --danger: #e74c3c;
             --shadow: 0 10px 30px rgba(0,0,0,0.08);
             --border-radius: 8px;
         }
 
-        body { 
-            font-family: 'Raleway', sans-serif; 
-            background: var(--bg); 
-            color: var(--text-main); 
-            margin: 0; 
-            padding: 0; 
-            overflow-x: hidden;
-        }
-
+        body { font-family: 'Raleway', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 0; overflow-x: hidden; }
         h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 1px; font-weight: 600; color: #111; }
-        
-        /* Layout */
         .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
         .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Buttony */
         button { 
-            background: #111; 
-            color: white; 
-            border: none; 
-            padding: 14px 28px; 
-            border-radius: 0; /* Kwadratowe, modne przyciski */
-            cursor: pointer; 
-            font-size: 13px; 
-            text-transform: uppercase; 
-            letter-spacing: 2px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            background: #111; color: white; border: none; padding: 14px 28px; 
+            border-radius: 0; cursor: pointer; font-size: 13px; text-transform: uppercase; 
+            letter-spacing: 2px; font-weight: 600; transition: all 0.3s ease;
         }
         button:hover { background: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(197, 160, 89, 0.3); }
         .btn-secondary { background: #f0f0f0; color: #333; }
         .btn-secondary:hover { background: #e0e0e0; }
         
-        /* Formularze */
-        .card { 
-            background: var(--surface); 
-            padding: 50px; 
-            box-shadow: var(--shadow); 
-            border-radius: var(--border-radius);
-            margin-bottom: 2rem; 
-            border: 1px solid #f0f0f0;
-        }
-        input { 
-            width: 100%; 
-            padding: 16px; 
-            margin-bottom: 20px; 
-            border: 1px solid #e0e0e0; 
-            background: #fafafa;
-            font-family: 'Raleway', sans-serif;
-            box-sizing: border-box;
-            transition: border 0.3s;
-        }
+        .card { background: var(--surface); padding: 50px; box-shadow: var(--shadow); border-radius: var(--border-radius); margin-bottom: 2rem; border: 1px solid #f0f0f0; }
+        input { width: 100%; padding: 16px; margin-bottom: 20px; border: 1px solid #e0e0e0; background: #fafafa; font-family: 'Raleway', sans-serif; box-sizing: border-box; transition: border 0.3s; }
         input:focus { outline: none; border-color: var(--accent); background: white; }
 
-        /* --- GALERIA KLIENTA --- */
-        .gallery-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 40px;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            border-bottom: 1px solid #eee;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-        }
-        
-        .gallery-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
-            gap: 4px; /* Małe odstępy jak na Instagramie */
-            padding: 20px 0;
-        }
-
-        .photo-card { 
-            position: relative; 
-            cursor: pointer; 
-            aspect-ratio: 2/3; /* Portretowy format */
-            overflow: hidden;
-            background: #eee;
-        }
-
-        .photo-card img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            transition: transform 0.6s ease;
-            filter: grayscale(20%); /* Lekko artystyczny filtr */
-        }
-
+        /* GALERIA */
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #eee; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px; padding: 20px 0; }
+        .photo-card { position: relative; cursor: pointer; aspect-ratio: 2/3; overflow: hidden; background: #eee; }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; filter: grayscale(20%); }
         .photo-card:hover img { transform: scale(1.05); filter: grayscale(0%); }
 
-        /* Ikona wyboru na kafelku */
-        .heart-icon {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 24px;
-            color: white;
-            opacity: 0.7;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            z-index: 2;
-        }
-        
-        .photo-card.selected .heart-icon {
-            color: var(--accent);
-            opacity: 1;
-            transform: scale(1.2);
-        }
-        
-        .photo-card.selected::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border: 4px solid var(--accent);
-            z-index: 1;
-            pointer-events: none;
-        }
+        .heart-icon { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; opacity: 0.7; text-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: all 0.2s; z-index: 2; }
+        .photo-card.selected .heart-icon { color: var(--accent); opacity: 1; transform: scale(1.2); }
+        .photo-card.selected::after { content: ''; position: absolute; inset: 0; border: 4px solid var(--accent); z-index: 1; pointer-events: none; }
 
-        /* --- LIGHTBOX (Pełny ekran) --- */
-        #lightbox {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(10, 10, 10, 0.98);
-            z-index: 2000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
+        /* LIGHTBOX */
+        #lightbox { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 10, 10, 0.98); z-index: 2000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         #lightbox.active { opacity: 1; pointer-events: all; }
-        
-        #lightbox img {
-            max-width: 90vw;
-            max-height: 85vh;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            user-select: none;
-        }
-
-        /* Kontrolki Lightboxa */
-        .lb-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            color: white;
-            font-size: 40px;
-            cursor: pointer;
-            padding: 20px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 50%;
-            width: 50px; height: 50px;
-            display: flex; align-items: center; justify-content: center;
-            transition: background 0.3s;
-        }
+        #lightbox img { max-width: 90vw; max-height: 85vh; box-shadow: 0 0 50px rgba(0,0,0,0.5); user-select: none; }
+        .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
         .lb-nav:hover { background: var(--accent); }
-        .lb-prev { left: 30px; }
-        .lb-next { right: 30px; }
+        .lb-prev { left: 30px; } .lb-next { right: 30px; }
         .lb-close { position: absolute; top: 30px; right: 30px; font-size: 40px; color: #fff; cursor: pointer; }
+        .lb-controls { position: absolute; bottom: 30px; display: flex; gap: 20px; align-items: center; background: rgba(255,255,255,0.1); padding: 10px 30px; border-radius: 30px; backdrop-filter: blur(5px); }
+        .lb-select-btn { background: transparent; border: 2px solid white; color: white; padding: 8px 20px; border-radius: 20px; }
+        .lb-select-btn.active { background: var(--accent); border-color: var(--accent); }
 
-        /* Panel dolny Lightboxa */
-        .lb-controls {
-            position: absolute;
-            bottom: 30px;
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            background: rgba(255,255,255,0.1);
-            padding: 10px 30px;
-            border-radius: 30px;
-            backdrop-filter: blur(5px);
-        }
-        .lb-select-btn {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 20px;
-        }
-        .lb-select-btn.active {
-            background: var(--accent);
-            border-color: var(--accent);
-        }
-
-        /* --- DASHBOARD FOTOGRAFA --- */
-        .album-item { 
-            display: flex; 
-            flex-wrap: wrap;
-            justify-content: space-between; 
-            align-items: center;
-            border-bottom: 1px solid #eee;
-            padding: 25px 0;
-        }
+        /* DASHBOARD */
+        .album-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 25px 0; }
         .album-info h3 { margin: 0 0 5px 0; font-size: 1.2rem; }
         .album-info p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
-        
-        .email-sender {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            align-items: center;
-        }
-        .email-sender input { margin: 0; padding: 10px; width: 250px; font-size: 14px; }
-        .email-sender button { padding: 11px 20px; font-size: 12px; }
+        .email-sender { display: flex; gap: 10px; margin-top: 15px; align-items: center; }
+        .email-sender input { margin: 0; padding: 10px; width: 250px; font-size: 14px; border-radius: 4px; border: 1px solid #ddd; }
+        .email-sender button { padding: 11px 20px; font-size: 12px; background: var(--accent); color: white; }
+        .email-sender button:hover { background: var(--accent-hover); }
 
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -238,14 +82,10 @@
         <div class="lb-close" onclick="app.closeLightbox()">&times;</div>
         <div class="lb-nav lb-prev" onclick="app.prevPhoto()">&#10094;</div>
         <div class="lb-nav lb-next" onclick="app.nextPhoto()">&#10095;</div>
-        
         <img id="lightbox-img" src="" oncontextmenu="return false;">
-        
         <div class="lb-controls">
             <span style="color:white; margin-right:15px; font-size:14px;">Użyj strzałek i SPACJI</span>
-            <button id="lb-select-btn" class="lb-select-btn" onclick="app.toggleSelectionFromLightbox()">
-                ❤ Wybierz zdjęcie
-            </button>
+            <button id="lb-select-btn" class="lb-select-btn" onclick="app.toggleSelectionFromLightbox()">❤ Wybierz zdjęcie</button>
         </div>
     </div>
 
@@ -289,12 +129,10 @@
                 <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Tomka" required>
                 <label>Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
-                
                 <div style="border: 2px dashed #ddd; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
                     <p style="font-size: 1.1rem; color: #555;">Wybierz zdjęcia (JPG)</p>
                     <input type="file" id="files" multiple accept="image/jpeg" required style="border:none; background:transparent;">
                 </div>
-                
                 <button type="submit" id="uploadBtn" style="width:100%; padding: 20px;">Rozpocznij Upload</button>
             </form>
             <div id="upload-status" style="margin-top:20px; text-align:center; color: var(--accent); font-weight:bold;"></div>
@@ -311,13 +149,11 @@
             </div>
             <div style="display:flex; align-items:center; gap:20px;">
                 <span id="selection-count" style="font-weight: 600; color: var(--accent); font-size:1.2rem;">0 wybranych</span>
-                <button onclick="app.saveSelection()">Zatwierdź Wybór</button>
+                <button onclick="app.saveSelection()" id="saveBtn">Zatwierdź Wybór</button>
             </div>
         </header>
-        
         <div class="container fade-in">
-            <div id="grid" class="gallery-grid">
-                </div>
+            <div id="grid" class="gallery-grid"></div>
         </div>
     </div>
 
@@ -340,26 +176,15 @@
         };
 
         const app = {
-            state: {
-                jwt: localStorage.getItem('photo_jwt'),
-                selected: new Set(),
-                currentAlbumToken: null,
-                photos: [], // Przechowujemy listę zdjęć dla lightboxa
-                currentPhotoIndex: 0
-            },
+            state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0 },
 
             init() {
-                // Obsługa klawiatury dla Lightboxa
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
-                    
                     if (e.key === 'ArrowLeft') this.prevPhoto();
                     if (e.key === 'ArrowRight') this.nextPhoto();
                     if (e.key === 'Escape') this.closeLightbox();
-                    if (e.key === ' ' || e.key === 'Enter') {
-                        e.preventDefault();
-                        this.toggleSelectionFromLightbox();
-                    }
+                    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
 
                 const path = window.location.pathname;
@@ -367,52 +192,32 @@
                     const token = path.split('/')[2];
                     this.loadGallery(token);
                 } else {
-                    if (this.state.jwt) this.loadDashboard();
-                    else router.go('login');
+                    if (this.state.jwt) this.loadDashboard(); else router.go('login');
                 }
             },
 
-            // --- AUTH ---
             async login() {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
                 try {
-                    const res = await fetch(API + '/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    });
+                    const res = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
                     const data = await res.json();
                     if (data.error) throw new Error(data.error);
-                    
                     this.state.jwt = data.token;
                     localStorage.setItem('photo_jwt', data.token);
                     this.loadDashboard();
-                } catch (err) {
-                    alert('Błąd: ' + err.message);
-                }
+                } catch (err) { alert('Błąd: ' + err.message); }
             },
 
-            logout() {
-                localStorage.removeItem('photo_jwt');
-                this.state.jwt = null;
-                router.go('login');
-            },
+            logout() { localStorage.removeItem('photo_jwt'); this.state.jwt = null; router.go('login'); },
 
-            // --- DASHBOARD ---
             async loadDashboard() {
                 router.go('dashboard');
                 try {
-                    const res = await fetch(API + '/admin/albums', {
-                        headers: { 'Authorization': 'Bearer ' + this.state.jwt }
-                    });
+                    const res = await fetch(API + '/admin/albums', { headers: { 'Authorization': 'Bearer ' + this.state.jwt } });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
-                    
-                    if(albums.length === 0) {
-                        container.innerHTML = '<p style="text-align:center; padding:50px;">Brak albumów. Utwórz pierwszy!</p>';
-                        return;
-                    }
+                    if(albums.length === 0) { container.innerHTML = '<p style="text-align:center; padding:50px;">Brak albumów.</p>'; return; }
 
                     container.innerHTML = albums.map(a => {
                         const link = window.location.origin + '/gallery/' + a.access_token;
@@ -422,90 +227,77 @@
                                 <h3>${a.title}</h3>
                                 <p>${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
                                 <div class="email-sender">
-                                    <input type="email" id="mail-${a.id}" placeholder="Wpisz email klienta...">
-                                    <button class="btn-secondary" onclick="app.sendEmail('${a.id}', '${a.title}', '${link}')">Wyślij Link</button>
+                                    <input type="email" id="mail-${a.id}" placeholder="Email klienta...">
+                                    <button onclick="app.sendEmail('${a.id}', '${a.title}', '${link}', this)">Wyślij</button>
                                 </div>
                             </div>
                             <div class="album-actions">
-                                <a href="/gallery/${a.access_token}" target="_blank" style="text-decoration:none;">
-                                    <button>Otwórz Galerię</button>
-                                </a>
+                                <a href="/gallery/${a.access_token}" target="_blank" style="text-decoration:none;"><button>Otwórz</button></a>
                             </div>
                         </div>
                     `}).join('');
-                } catch (err) {
-                    console.error(err);
-                }
+                } catch (err) { console.error(err); }
             },
 
-            sendEmail(id, title, link) {
+            // --- WYSYŁANIE MAILA (SERVER-SIDE) ---
+            async sendEmail(id, title, link, btnElement) {
                 const emailInput = document.getElementById(`mail-${id}`);
                 const email = emailInput.value;
-                if(!email) {
-                    alert("Wpisz adres email klienta!");
-                    return;
-                }
-                const subject = encodeURIComponent(`Twoja galeria zdjęć: ${title}`);
-                const body = encodeURIComponent(`Dzień dobry,\n\nPrzesyłam link do galerii zdjęć. Proszę o wybór ujęć do obróbki.\n\nLink: ${link}\n\nPozdrawiam`);
-                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-            },
+                if(!email) { alert("Wpisz adres email klienta!"); return; }
 
-            // --- UPLOAD ---
-            async createAlbum() {
-                const btn = document.getElementById('uploadBtn');
-                btn.disabled = true;
-                btn.innerText = "Przetwarzanie (nie zamykaj okna)...";
-                
+                const originalText = btnElement.innerText;
+                btnElement.innerText = "Wysyłanie...";
+                btnElement.disabled = true;
+
                 try {
-                    const title = document.getElementById('albumTitle').value;
-                    const clientName = document.getElementById('clientName').value;
-                    
-                    // 1. Utwórz album
-                    const res1 = await fetch(API + '/albums', {
+                    const res = await fetch(API + '/send-link', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
                             'Authorization': 'Bearer ' + this.state.jwt 
                         },
-                        body: JSON.stringify({ title, clientName })
-                    });
-                    const albumData = await res1.json();
-                    const albumId = albumData[0].id;
-
-                    // 2. Upload zdjęć
-                    const files = document.getElementById('files').files;
-                    const formData = new FormData();
-                    formData.append('albumId', albumId);
-                    
-                    // Limit plików na raz dla bezpieczeństwa (np. 50)
-                    for (let i = 0; i < files.length; i++) {
-                        formData.append('photos', files[i]);
-                    }
-
-                    document.getElementById('upload-status').innerText = "Wysyłanie zdjęć... To może potrwać w zależności od łącza.";
-
-                    const res2 = await fetch(API + '/upload', {
-                        method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + this.state.jwt },
-                        body: formData
+                        body: JSON.stringify({ clientEmail: email, albumTitle: title, link: link })
                     });
                     
-                    if(res2.ok) {
-                        alert('Sukces! Galeria gotowa.');
-                        this.loadDashboard();
+                    const data = await res.json();
+                    if(data.success) {
+                        alert(`Wysłano wiadomość do: ${email}`);
+                        emailInput.value = ''; // Wyczyść pole
                     } else {
-                        throw new Error('Błąd wysyłania plików.');
+                        throw new Error(data.error || 'Błąd wysyłania');
                     }
-
                 } catch (err) {
-                    alert(err.message);
+                    alert('Nie udało się wysłać maila. Sprawdź konfigurację hasła w Renderze.');
                 } finally {
-                    btn.disabled = false;
-                    btn.innerText = "Rozpocznij Upload";
+                    btnElement.innerText = originalText;
+                    btnElement.disabled = false;
                 }
             },
 
-            // --- GALERIA KLIENTA ---
+            async createAlbum() {
+                const btn = document.getElementById('uploadBtn');
+                btn.disabled = true; btn.innerText = "Przetwarzanie...";
+                try {
+                    const title = document.getElementById('albumTitle').value;
+                    const clientName = document.getElementById('clientName').value;
+                    const res1 = await fetch(API + '/albums', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ title, clientName }) });
+                    const albumData = await res1.json();
+                    const albumId = albumData[0].id;
+
+                    const files = document.getElementById('files').files;
+                    const formData = new FormData();
+                    formData.append('albumId', albumId);
+                    for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
+
+                    document.getElementById('upload-status').innerText = "Wysyłanie...";
+                    const res2 = await fetch(API + '/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.state.jwt }, body: formData });
+                    
+                    if(res2.ok) { alert('Sukces!'); this.loadDashboard(); } 
+                    else throw new Error('Błąd uploadu');
+                } catch (err) { alert(err.message); } 
+                finally { btn.disabled = false; btn.innerText = "Rozpocznij Upload"; }
+            },
+
             async loadGallery(token) {
                 this.state.currentAlbumToken = token;
                 router.go('gallery');
@@ -513,120 +305,64 @@
                     const res = await fetch(API + '/gallery/' + token);
                     if(!res.ok) throw new Error('Błąd');
                     const data = await res.json();
-                    
                     document.getElementById('gallery-title').innerText = data.album[0].title;
                     this.state.selected = new Set(data.selections);
-                    this.state.photos = data.photos; // Zapisz zdjęcia do pamięci dla Lightboxa
-                    
-                    this.renderGrid();
-                    this.updateCounter();
-
-                } catch (err) {
-                    document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Galeria nie istnieje.</p></div>";
-                }
+                    this.state.photos = data.photos;
+                    this.renderGrid(); this.updateCounter();
+                } catch (err) { document.body.innerHTML = "<div style='text-align:center; padding:50px;'><h1>404</h1><p>Galeria nie istnieje.</p></div>"; }
             },
 
             renderGrid() {
                 const grid = document.getElementById('grid');
                 grid.innerHTML = this.state.photos.map((p, index) => {
                     const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
-                    return `
-                        <div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})">
-                            <div class="heart-icon">${isSelected ? '❤' : '♡'}</div>
-                            <img src="${p.proof_url}" loading="lazy">
-                        </div>
-                    `;
+                    return `<div class="photo-card ${isSelected}" onclick="app.openLightbox(${index})"><div class="heart-icon">${isSelected ? '❤' : '♡'}</div><img src="${p.proof_url}" loading="lazy"></div>`;
                 }).join('');
             },
 
-            // --- LIGHTBOX LOGIC ---
             openLightbox(index) {
                 this.state.currentPhotoIndex = index;
                 const p = this.state.photos[index];
-                
                 const box = document.getElementById('lightbox');
                 const img = document.getElementById('lightbox-img');
-                const selectBtn = document.getElementById('lb-select-btn');
-                
                 img.src = p.proof_url;
                 box.classList.add('active');
                 this.updateLightboxUI();
             },
-
-            closeLightbox() {
-                document.getElementById('lightbox').classList.remove('active');
-            },
-
-            nextPhoto() {
-                if (this.state.currentPhotoIndex < this.state.photos.length - 1) {
-                    this.openLightbox(this.state.currentPhotoIndex + 1);
-                } else {
-                    this.openLightbox(0); // Pętla
-                }
-            },
-
-            prevPhoto() {
-                if (this.state.currentPhotoIndex > 0) {
-                    this.openLightbox(this.state.currentPhotoIndex - 1);
-                } else {
-                    this.openLightbox(this.state.photos.length - 1); // Pętla
-                }
-            },
+            closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
+            nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); else this.openLightbox(0); },
+            prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); else this.openLightbox(this.state.photos.length - 1); },
 
             toggleSelectionFromLightbox() {
                 const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
-                if (this.state.selected.has(currentPhoto.id)) {
-                    this.state.selected.delete(currentPhoto.id);
-                } else {
-                    this.state.selected.add(currentPhoto.id);
-                }
-                
-                this.updateLightboxUI(); // Aktualizuj przycisk w Lightbox
-                this.renderGrid(); // Aktualizuj siatkę w tle
-                this.updateCounter();
+                if (this.state.selected.has(currentPhoto.id)) this.state.selected.delete(currentPhoto.id);
+                else this.state.selected.add(currentPhoto.id);
+                this.updateLightboxUI(); this.renderGrid(); this.updateCounter();
             },
 
             updateLightboxUI() {
                 const currentPhoto = this.state.photos[this.state.currentPhotoIndex];
                 const btn = document.getElementById('lb-select-btn');
-                
-                if (this.state.selected.has(currentPhoto.id)) {
-                    btn.classList.add('active');
-                    btn.innerText = "❤ WYBRANE";
-                } else {
-                    btn.classList.remove('active');
-                    btn.innerText = "Wybierz zdjęcie";
-                }
+                if (this.state.selected.has(currentPhoto.id)) { btn.classList.add('active'); btn.innerText = "❤ WYBRANE"; } 
+                else { btn.classList.remove('active'); btn.innerText = "Wybierz zdjęcie"; }
             },
 
-            updateCounter() {
-                document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`;
-            },
+            updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
 
             async saveSelection() {
+                const btn = document.getElementById('saveBtn');
+                btn.innerText = "Wysyłanie..."; btn.disabled = true;
                 const token = this.state.currentAlbumToken;
                 try {
-                    await fetch(API + '/select', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            token: token,
-                            photoIds: Array.from(this.state.selected)
-                        })
-                    });
-                    alert('Dziękujemy! Twój wybór został wysłany do fotografa.');
-                } catch (err) {
-                    alert('Błąd zapisu');
-                }
+                    await fetch(API + '/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) });
+                    alert('Dziękujemy! Twój wybór został wysłany do fotografa (email również został powiadomiony).');
+                } catch (err) { alert('Błąd zapisu'); }
+                finally { btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; }
             }
         };
 
-        // Router Init
         const path = window.location.pathname;
-        if(path === '/' || path === '/index.html') app.init();
-        else if (path.startsWith('/gallery/')) app.init();
-        else app.init();
-
+        if(path === '/' || path === '/index.html') app.init(); else if (path.startsWith('/gallery/')) app.init(); else app.init();
     </script>
 </body>
 </html>
