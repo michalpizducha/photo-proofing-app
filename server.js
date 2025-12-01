@@ -12,20 +12,18 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
+// ZMIANA 1: Importujemy transport Brevo
+const BrevoTransport = require('nodemailer-brevo-transport');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// --- KONFIGURACJA POCZTY (IPv4 + Gmail) ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    family: 4 // Wymuszenie IPv4 dla stabilności maili
-});
+// --- ZMIANA 2: KONFIGURACJA POCZTY (BREVO API) ---
+// Zamiast SMTP Gmaila, używamy bezpiecznego API Brevo (port 443)
+const transporter = nodemailer.createTransport(new BrevoTransport({
+    apiKey: process.env.BREVO_API_KEY
+}));
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
@@ -297,7 +295,6 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- TU BYŁ BŁĄD, POPRAWKA: '0.0.0.0' ---
 initDb().then(() => {
     app.listen(PORT, '0.0.0.0', () => console.log(`Serwer start na porcie ${PORT}`));
 });
