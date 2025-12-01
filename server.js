@@ -18,17 +18,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS';
 
-// Konfiguracja Poczty
+// --- KONFIGURACJA POCZTY ---
 const transporter = nodemailer.createTransport(new BrevoTransport({
     apiKey: process.env.BREVO_API_KEY
 }));
 
-// Zabezpieczenia i pliki statyczne
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
-// WAŻNE: To musi być przed routingiem API
+// WAŻNE: Obsługa plików statycznych
 app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({
@@ -109,7 +108,7 @@ const initDb = async () => {
         if (userCheck.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
             await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            console.log('>>> UTWORZONO ADMINA: admin@example.com / admin123');
+            console.log('>>> ADMIN UTWORZONY');
         }
     } catch (err) {
         console.error('Błąd Init DB:', err);
@@ -155,7 +154,6 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     }
 });
 
-// Endpoint do pobierania nazw plików wybranych zdjęć
 app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
@@ -209,8 +207,6 @@ app.post('/api/upload', authenticateToken, upload.array('photos'), async (req, r
         if (albumCheck.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
 
         const results = [];
-        
-        // Upload sekwencyjny żeby nie zabić pamięci RAM
         for (const file of req.files) {
             try {
                 const finalBuffer = await sharp(file.buffer)
@@ -323,6 +319,7 @@ app.post('/api/send-link', authenticateToken, async (req, res) => {
     }
 });
 
+// Obsługa SPA (zawsze na końcu)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
