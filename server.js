@@ -1,15 +1,3 @@
-Jeśli chodzi o kod JavaScript, to musimy rozróżnić dwa miejsca:
-
-Frontend (w przeglądarce): Ten kod znajduje się wewnątrz pliku index.html, który wysłałem przed chwilą (w sekcji <script>). Nie ma osobnego pliku .js dla frontendu w Twoim projekcie.
-
-Backend (na serwerze): To jest plik server.js.
-
-Dla pewności, abyś miała kompletny, działający zestaw (z naprawionym wysyłaniem powiadomień do Ciebie i obsługą Brevo), poniżej zamieszczam aktualny i poprawny kod pliku server.js.
-
-Skopiuj go i podmień w całości w pliku server.js.
-
-JavaScript
-
 require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
@@ -311,3 +299,4 @@ app.get('*', (req, res) => {
 initDb().then(() => {
     app.listen(PORT, '0.0.0.0', () => console.log(`Serwer start na porcie ${PORT}`));
 });
+
