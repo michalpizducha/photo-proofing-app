@@ -1,15 +1,15 @@
-/* --- DESIGN SYSTEM PREMIUM --- */
+/* --- DESIGN SYSTEM JULIA BERLIK FOTO --- */
 :root {
     --primary: #2563eb;
     --success: #16a34a;
     --danger: #ef4444;
-    --bg: #f8fafc;
+    --bg: #fdfdfd;
     --surface: #ffffff;
     --text-main: #1a1a1a;
     --text-muted: #666;
-    --accent: #c5a059;
+    --accent: #c5a059; /* Złoty akcent z logo */
     --accent-hover: #b08d45;
-    --shadow: 0 10px 30px rgba(0,0,0,0.08);
+    --shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
 * { box-sizing: border-box; }
@@ -27,133 +27,211 @@ h1, h2, h3 {
     font-family: 'Cinzel', serif; 
     color: #111; 
     margin: 0 0 15px 0;
+    font-weight: 600;
 }
 
-/* --- ELEMENTY INTERFEJSU --- */
+/* --- LOGO --- */
+.brand-logo {
+    max-height: 100px;
+    width: auto;
+    margin-bottom: 20px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* --- UKŁAD --- */
 .container { 
     max-width: 1400px; 
     margin: 0 auto; 
-    padding: 20px; 
+    padding: 30px 20px; 
 }
 
 .hidden { display: none !important; }
 .fade-in { animation: fadeIn 0.5s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+/* --- KARTY i FORMULARZE --- */
+.card {
+    background: var(--surface);
+    padding: 50px;
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    max-width: 500px;
+    margin: 0 auto;
+    border: 1px solid #f0f0f0;
+}
+
+input {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    font-family: inherit;
+    transition: border 0.3s;
+}
+input:focus { outline:none; border-color: var(--accent); }
+
 /* --- PRZYCISKI --- */
 button { 
     background: #111; 
     color: white; 
     border: none; 
-    padding: 12px 24px; 
+    padding: 14px 28px; 
     cursor: pointer; 
     font-size: 13px; 
     text-transform: uppercase; 
-    letter-spacing: 1px; 
+    letter-spacing: 2px; 
     font-weight: 600; 
-    border-radius: 4px;
-    transition: all 0.2s ease; 
+    transition: all 0.3s ease; 
 }
 
 button:hover { 
     background: var(--accent); 
     transform: translateY(-2px); 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+    box-shadow: 0 5px 15px rgba(197, 160, 89, 0.3); 
 }
 
-button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Styl przycisku usuwania */
+/* Przycisk usuwania */
 .btn-danger {
-    background: white !important;
+    background: transparent !important;
     color: var(--danger) !important;
     border: 1px solid var(--danger) !important;
 }
 .btn-danger:hover {
     background: var(--danger) !important;
     color: white !important;
+    border-color: var(--danger) !important;
 }
 
-/* --- FORMULARZE I KARTY --- */
-input {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 15px;
+/* Przycisk Kopiuj */
+.btn-copy {
+    background: #f5f5f5 !important;
+    color: #333 !important;
+    border: 1px solid #ddd !important;
+}
+.btn-copy:hover {
+    background: #e0e0e0 !important;
+}
+
+/* --- FILTRY --- */
+.filters {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+.filter-btn {
+    background: transparent;
+    color: #888;
     border: 1px solid #ddd;
-    border-radius: 4px;
-    font-family: inherit;
+    border-radius: 50px;
+    padding: 10px 25px;
 }
-
-.card {
-    background: var(--surface);
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    max-width: 500px;
-    margin: 0 auto; 
+.filter-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
 }
 
 /* --- HERO SECTION (DLA KLIENTA) --- */
 .hero {
-    height: 50vh;
-    background-color: #333;
-    background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80');
-    background-size: cover;
-    background-position: center;
+    height: 60vh;
+    background-color: #111;
+    position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
     color: white;
     margin-bottom: -50px;
     padding: 0 20px;
+    overflow: hidden;
 }
 
-.hero h1 { color: white; font-size: 2.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+/* Tło Hero z Logo */
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url('logo.jpg');
+    background-size: cover;
+    background-position: center;
+    filter: brightness(0.3); /* Przyciemnienie tła */
+    z-index: 0;
+}
 
-/* --- GALERIA I GRID --- */
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.hero img.hero-logo {
+    max-width: 200px;
+    filter: brightness(0) invert(1); /* Logo na biało */
+    margin-bottom: 20px;
+}
+
+.hero h1 { 
+    color: white; 
+    font-size: 3rem; 
+    letter-spacing: 2px;
+}
+
+/* --- GALERIA KONTAINER --- */
 .gallery-container {
     background: var(--surface);
-    border-radius: 12px;
-    box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
-    padding: 30px;
-    min-height: 300px;
+    border-radius: 0;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+    padding: 40px;
+    min-height: 400px;
     position: relative;
     z-index: 10;
+    max-width: 1300px;
+    margin: 0 auto;
 }
 
 .gallery-grid { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
-    gap: 10px; 
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+    gap: 15px; 
     margin-top: 20px;
 }
 
-/* --- ZDJĘCIA --- */
+/* --- ZDJĘCIA I SKELETON --- */
 .photo-card { 
     position: relative; 
     cursor: pointer; 
     aspect-ratio: 2/3; 
-    background: #eee; 
+    background: #f0f0f0; 
     overflow: hidden;
-    border-radius: 4px;
 }
 
 .photo-card img { 
     width: 100%; 
     height: 100%; 
     object-fit: cover; 
-    transition: transform 0.3s;
-    display: block; /* Usuwa puste przestrzenie */
+    transition: transform 0.5s ease;
+    display: block; 
 }
 
 .photo-card:hover img { transform: scale(1.05); }
 
-/* Stan: Wybrane */
+/* Skeleton Animation */
+.skeleton {
+    background: #eee;
+    background-image: linear-gradient(90deg, #eee 0px, #f9f9f9 40px, #eee 80px);
+    background-size: 600px;
+    animation: shine 1.6s infinite linear;
+}
+@keyframes shine {
+    0% { background-position: -100px; }
+    40%, 100% { background-position: 140px; }
+}
+
+/* Wybór */
 .photo-card.selected::after { 
     content: ''; 
     position: absolute; 
@@ -164,14 +242,13 @@ input {
     pointer-events: none; 
 }
 
-/* Ikona Serca */
 .heart-icon { 
     position: absolute; 
-    top: 10px; 
-    right: 10px; 
-    font-size: 24px; 
+    top: 15px; 
+    right: 15px; 
+    font-size: 26px; 
     color: white; 
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    text-shadow: 0 2px 5px rgba(0,0,0,0.5);
     z-index: 3;
     transition: transform 0.2s;
 }
@@ -182,23 +259,23 @@ input {
     opacity: 1;
 }
 
-/* --- TOAST NOTIFICATIONS (POPRAWIONE) --- */
+/* --- TOAST --- */
 #toast-container {
     position: fixed;
     bottom: 30px;
     left: 50%;
-    transform: translateX(-50%) translateY(100px); /* Ukryte na dole */
-    background: #333;
+    transform: translateX(-50%) translateY(100px); 
+    background: #222;
     color: white;
-    padding: 12px 24px;
+    padding: 15px 30px;
     border-radius: 50px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     z-index: 9999;
     opacity: 0;
-    pointer-events: none; /* Ważne: żeby nie blokowało klikania gdy ukryte */
+    pointer-events: none; 
     transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 
@@ -210,36 +287,35 @@ input {
 
 .toast-icon {
     background: var(--success);
-    width: 20px; 
-    height: 20px;
+    width: 24px; 
+    height: 24px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: bold;
+    font-size: 14px; font-weight: bold;
 }
 
 /* --- LIGHTBOX --- */
-#lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+#lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10,10,10,0.98); z-index: 5000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 #lightbox.active { opacity: 1; pointer-events: all; }
-#lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; }
-.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 20px; user-select: none; }
-.lb-prev { left: 10px; } .lb-next { right: 10px; }
+#lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; padding: 30px; user-select: none; }
+.lb-prev { left: 0; } .lb-next { right: 0; }
 .lb-close { position: absolute; top: 20px; right: 20px; font-size: 40px; color: white; cursor: pointer; }
-.lb-controls { position: absolute; bottom: 20px; z-index: 5001; }
-.lb-select-btn { border: 1px solid white; background: rgba(0,0,0,0.5); border-radius: 30px; padding: 10px 30px; }
+.lb-controls { position: absolute; bottom: 30px; z-index: 5001; }
+.lb-select-btn { border: 1px solid white; background: rgba(0,0,0,0.3); border-radius: 0; padding: 10px 40px; text-transform: uppercase; letter-spacing: 2px; }
 .lb-select-btn.active { background: var(--accent); border-color: var(--accent); }
 
 /* --- MOBILE --- */
 @media (max-width: 768px) {
     .gallery-header { flex-direction: column; align-items: flex-start; gap: 15px; }
     
-    /* Pływający przycisk na telefonach */
     #saveBtn {
         position: fixed;
         bottom: 20px; 
         right: 20px;
         z-index: 4000;
         border-radius: 50px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-        padding: 15px 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        padding: 15px 30px;
     }
 }
