@@ -63,7 +63,7 @@
                 <input type="email" id="clientEmailUpload" placeholder="Jeśli podasz, wyślemy link">
                 
                 <div style="border:2px dashed #ddd; padding:30px; margin:20px 0;">
-                    <p>Wybierz pliki JPG</p>
+                    <p>Wybierz pliki JPG (System automatycznie podzieli upload)</p>
                     <input type="file" id="files" multiple accept="image/jpeg" required>
                 </div>
                 <button type="submit" id="uploadBtn" style="width:100%">Rozpocznij Upload</button>
@@ -102,42 +102,40 @@
         const router = {
             views: ['login', 'dashboard', 'upload', 'gallery'],
             go(viewId) {
-                // Ukryj wszystkie
                 this.views.forEach(v => {
                     const el = document.getElementById('view-' + v);
                     if(el) el.classList.add('hidden');
                 });
-                // Pokaż wybrany
                 const active = document.getElementById('view-' + viewId);
                 if(active) active.classList.remove('hidden');
-                
-                // Ukryj branding w widoku galerii (opcjonalne, dla czystości)
                 if(viewId === 'gallery') document.querySelector('.brand-title').style.display = 'block';
             }
         };
 
         const app = {
-            state: { jwt: localStorage.getItem('photo_jwt'), selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
+            state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
 
-            init() {
-                // Obsługa klawiszy
+            async init() {
+                // Obsługa klawiszy Lightboxa
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
                     if (e.key === 'ArrowLeft') this.prevPhoto();
                     if (e.key === 'ArrowRight') this.nextPhoto();
                     if (e.key === 'Escape') this.closeLightbox();
-                    if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
 
-                // ROUTING - To naprawia błąd widoczności logowania dla klienta
+                // ROUTING
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
-                    if(token) {
-                        this.loadGallery(token);
-                    }
+                    if(token) this.loadGallery(token);
                 } else {
-                    if (this.state.jwt) this.loadDashboard(); else router.go('login');
+                    // Sprawdzamy sesję przez HTTP-only cookie
+                    try {
+                        const res = await fetch(API + '/auth/check', { credentials: 'include' });
+                        if(res.ok) this.loadDashboard();
+                        else router.go('login');
+                    } catch(e) { router.go('login'); }
                 }
             },
 
@@ -153,21 +151,28 @@
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
                 try {
-                    const res = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+                    const res = await fetch(API + '/auth/login', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ email, password }),
+                        credentials: 'include' // WAŻNE: Włącza obsługę ciasteczek
+                    });
                     const data = await res.json();
                     if (data.error) throw new Error(data.error);
-                    this.state.jwt = data.token;
-                    localStorage.setItem('photo_jwt', data.token);
+                    
                     this.loadDashboard();
                 } catch (err) { alert(err.message); }
             },
 
-            logout() { localStorage.removeItem('photo_jwt'); this.state.jwt = null; router.go('login'); },
+            async logout() { 
+                await fetch(API + '/auth/logout', { method: 'POST' });
+                router.go('login'); 
+            },
 
             async loadDashboard() {
                 router.go('dashboard');
                 try {
-                    const res = await fetch(API + '/admin/albums', { headers: { 'Authorization': 'Bearer ' + this.state.jwt } });
+                    const res = await fetch(API + '/admin/albums', { credentials: 'include' });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
                     
@@ -176,8 +181,7 @@
                         return;
                     }
 
-                    container.innerHTML = albums.map(a => {
-                        return `
+                    container.innerHTML = albums.map(a => `
                         <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                             <div>
                                 <h3 style="margin-bottom:5px;">${a.title}</h3>
@@ -189,20 +193,16 @@
                                 <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="font-size:11px;">Usuń</button>
                             </div>
                         </div>
-                    `}).join('');
+                    `).join('');
                 } catch (err) { console.error(err); }
             },
 
             async copyFilenames(albumId) {
                 try {
-                    const res = await fetch(API + '/admin/albums/' + albumId + '/files', { 
-                        headers: { 'Authorization': 'Bearer ' + this.state.jwt } 
-                    });
+                    const res = await fetch(API + '/admin/albums/' + albumId + '/files', { credentials: 'include' });
                     const data = await res.json();
-                    
-                    if(data.filenames && data.filenames.length > 0) {
-                        const textToCopy = data.filenames.join(', ');
-                        navigator.clipboard.writeText(textToCopy);
+                    if(data.filenames?.length > 0) {
+                        navigator.clipboard.writeText(data.filenames.join(', '));
                         this.showToast('Skopiowano listę plików!', 'success');
                     } else {
                         this.showToast('Brak wybranych zdjęć.', 'error');
@@ -213,56 +213,100 @@
             async deleteAlbum(id) {
                 if(!confirm('Czy na pewno chcesz usunąć ten album?')) return;
                 try {
-                    const res = await fetch(API + '/albums/' + id, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': 'Bearer ' + this.state.jwt }
-                    });
-                    if(res.ok) {
-                        this.showToast('Album usunięty.', 'success');
-                        this.loadDashboard();
-                    } else { throw new Error('Błąd usuwania'); }
+                    const res = await fetch(API + '/albums/' + id, { method: 'DELETE', credentials: 'include' });
+                    if(res.ok) { this.showToast('Album usunięty.', 'success'); this.loadDashboard(); }
+                    else { throw new Error('Błąd usuwania'); }
                 } catch (err) { this.showToast('Błąd: ' + err.message, 'error'); }
             },
 
+            // --- NOWA LOGIKA BATCH UPLOAD ---
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
                 const statusDiv = document.getElementById('upload-status');
+                const title = document.getElementById('albumTitle').value;
+                const clientName = document.getElementById('clientName').value;
+                const clientEmail = document.getElementById('clientEmailUpload').value;
+                const filesInput = document.getElementById('files');
+                const files = Array.from(filesInput.files);
+
+                if(files.length === 0) return this.showToast('Wybierz zdjęcia', 'error');
+
                 btn.disabled = true; btn.innerText = "Przetwarzanie...";
+                
                 try {
-                    const title = document.getElementById('albumTitle').value;
-                    const clientName = document.getElementById('clientName').value;
-                    const clientEmail = document.getElementById('clientEmailUpload').value;
-                    const res1 = await fetch(API + '/albums', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ title, clientName }) });
+                    // 1. Tworzenie Albumu
+                    const res1 = await fetch(API + '/albums', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ title, clientName }),
+                        credentials: 'include'
+                    });
+                    
+                    if(!res1.ok) throw new Error('Błąd tworzenia albumu');
                     const albumData = await res1.json();
-                    const albumId = albumData[0].id;
-                    const accessToken = albumData[0].access_token;
-                    const files = document.getElementById('files').files;
-                    const formData = new FormData();
-                    formData.append('albumId', albumId);
+                    const albumId = albumData.id;
+                    const accessToken = albumData.access_token;
+
+                    // 2. Batch Upload (partie po 3 zdjęcia)
+                    const BATCH_SIZE = 3;
+                    let uploaded = 0;
+
+                    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+                        const chunk = files.slice(i, i + BATCH_SIZE);
+                        const formData = new FormData();
+                        formData.append('albumId', albumId);
+                        chunk.forEach(f => formData.append('photos', f));
+
+                        // Pasek postępu
+                        const progress = Math.round((uploaded / files.length) * 100);
+                        statusDiv.innerHTML = `
+                            <div style="margin-top:10px;">
+                                Wysyłanie: ${uploaded}/${files.length} (${progress}%)
+                                <div style="width:100%; height:10px; background:#eee; margin-top:5px;">
+                                    <div style="width:${progress}%; height:100%; background:var(--accent); transition:width 0.3s;"></div>
+                                </div>
+                            </div>`;
+
+                        const resUpload = await fetch(API + '/upload', { 
+                            method: 'POST', 
+                            body: formData,
+                            credentials: 'include'
+                        });
+
+                        if(!resUpload.ok) throw new Error('Błąd wysyłania partii zdjęć');
+                        uploaded += chunk.length;
+                    }
+
+                    // 3. Koniec
+                    statusDiv.innerHTML = "Wysyłanie zakończone sukcesem!";
                     
-                    // Upload
-                    for (let i = 0; i < files.length; i++) formData.append('photos', files[i]);
-                    statusDiv.innerText = "Wysyłanie zdjęć... Proszę czekać.";
-                    const res2 = await fetch(API + '/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.state.jwt }, body: formData });
-                    
-                    if(res2.ok) { 
-                        if (clientEmail) {
-                            statusDiv.innerText = "Wysyłanie maila...";
-                            const link = window.location.origin + '/gallery/' + accessToken;
-                            await fetch(API + '/send-link', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.state.jwt }, body: JSON.stringify({ clientEmail: clientEmail, albumTitle: title, link: link }) });
-                            this.showToast('Wysłano do klienta!', 'success');
-                        } else { this.showToast('Gotowe!', 'success'); }
-                        this.loadDashboard(); 
-                    } else throw new Error('Błąd uploadu');
-                } catch (err) { this.showToast(err.message, 'error'); } finally { btn.disabled = false; btn.innerText = "Rozpocznij Upload"; statusDiv.innerText = ""; }
+                    if (clientEmail) {
+                        statusDiv.innerText += " Wysyłanie maila...";
+                        const link = window.location.origin + '/gallery/' + accessToken;
+                        await fetch(API + '/send-link', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ clientEmail, albumTitle: title, link }),
+                            credentials: 'include'
+                        });
+                        this.showToast('Wysłano do klienta!', 'success');
+                    } else { 
+                        this.showToast('Gotowe!', 'success'); 
+                    }
+                    setTimeout(() => this.loadDashboard(), 1000);
+
+                } catch (err) { 
+                    statusDiv.innerText = "Błąd: " + err.message;
+                    this.showToast('Błąd uploadu', 'error'); 
+                } finally { 
+                    btn.disabled = false; btn.innerText = "Rozpocznij Upload"; 
+                }
             },
 
             async loadGallery(token) {
                 this.state.currentAlbumToken = token;
                 router.go('gallery');
-                
                 const grid = document.getElementById('grid');
-                // Skeletony
                 grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join('');
 
                 try {
@@ -271,7 +315,6 @@
                     const data = await res.json();
                     
                     document.getElementById('gallery-title').innerText = data.album[0].title;
-                    
                     this.state.selected = new Set(data.selections);
                     this.state.photos = data.photos;
                     this.renderGrid();
@@ -282,7 +325,6 @@
                         localStorage.setItem('visited_' + token, 'true');
                     }
                 } catch (err) { 
-                    // Jeśli błąd, ukryj wszystko i pokaż komunikat
                     document.getElementById('view-gallery').innerHTML = "<div class='container' style='text-align:center; padding:100px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; 
                 }
             },
@@ -316,7 +358,7 @@
                         <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${originalIndex})">
                             ${isSelected ? '❤' : '♡'}
                         </div>
-                        <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie">
+                        <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie" onerror="this.src='placeholder.jpg'">
                     </div>`;
                 }).join('');
             },
@@ -335,21 +377,14 @@
             openLightbox(index) {
                 this.state.currentPhotoIndex = index;
                 const p = this.state.photos[index];
-                const box = document.getElementById('lightbox');
                 document.getElementById('lightbox-img').src = p.proof_url;
-                box.classList.add('active');
+                document.getElementById('lightbox').classList.add('active');
                 this.updateLightboxUI();
             },
             closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
             
-            nextPhoto() { 
-                if (this.state.currentPhotoIndex < this.state.photos.length - 1) 
-                    this.openLightbox(this.state.currentPhotoIndex + 1); 
-            },
-            prevPhoto() { 
-                if (this.state.currentPhotoIndex > 0) 
-                    this.openLightbox(this.state.currentPhotoIndex - 1); 
-            },
+            nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); },
+            prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); },
 
             toggleSelectionFromLightbox() {
                 const p = this.state.photos[this.state.currentPhotoIndex];
@@ -372,9 +407,7 @@
                 }
             },
 
-            updateCounter() { 
-                document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; 
-            },
+            updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
 
             async saveSelection() {
                 const btn = document.getElementById('saveBtn');
@@ -387,11 +420,8 @@
                         body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) 
                     });
                     this.showToast('Wybór zapisany i wysłany!', 'success');
-                } catch (err) { 
-                    this.showToast('Błąd zapisu.', 'error'); 
-                } finally { 
-                    btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; 
-                }
+                } catch (err) { this.showToast('Błąd zapisu.', 'error'); } 
+                finally { btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; }
             }
         };
 
