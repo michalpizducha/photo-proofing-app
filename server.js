@@ -141,17 +141,24 @@ app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. Tworzenie albumu
+// 2. Tworzenie albumu (POPRAWIONE)
 app.post('/api/albums', authenticateToken, async (req, res) => {
     const { title, clientName, clientEmail } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
+    
+    console.log('>>> Tworzenie albumu:', { title, clientName, clientEmail }); // DEBUG
+    
     try {
         const result = await pool.query(
             'INSERT INTO albums (user_id, title, client_name, client_email, access_token) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
             [req.user.id, title, clientName, clientEmail || null, token]
         );
+        console.log('>>> Album utworzony:', result.rows[0]); // DEBUG
         res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error('>>> Błąd tworzenia albumu:', err); // DEBUG
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 // 3. Usuwanie albumu
