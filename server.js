@@ -123,6 +123,23 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+// 1.5. Pobieranie listy nazw plików (do kopiowania)
+app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
+    try {
+        // Sprawdź czy album należy do zalogowanego fotografa
+        const check = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+        if (check.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
+
+        // Pobierz nazwy plików
+        const result = await pool.query('SELECT filename FROM photos WHERE album_id=$1 ORDER BY filename', [req.params.id]);
+        
+        // Zwróć samą listę nazw
+        res.json({ filenames: result.rows.map(r => r.filename) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
 // 2. Tworzenie albumu
 app.post('/api/albums', authenticateToken, async (req, res) => {
     const { title, clientName } = req.body;
@@ -373,3 +390,4 @@ const initDb = async () => {
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 initDb().then(() => app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`)));
+
