@@ -16,7 +16,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const BrevoTransport = require('nodemailer-brevo-transport');
 
-// --- WALIDACJA ŚRODOWISKA ---
+// --- WALIDACJA ŚRODOWISKA (NAPRAWIONA LINIA) ---
 const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
 requiredEnv.forEach(key => {
     if (!process.env[key]) {
@@ -33,7 +33,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"], // Niezbędne dla obecnej struktury SPA
+            scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
