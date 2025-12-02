@@ -16,14 +16,14 @@ const rateLimit = require('express-rate-limit');
 const BrevoTransport = require('nodemailer-brevo-transport');
 
 // --- WALIDACJA ZMIENNYCH ---
-const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID'];
+// Sprawdzamy kluczowe zmienne z Twojego zrzutu ekranu
+const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID', 'BREVO_API_KEY', 'EMAIL_USER'];
 requiredEnv.forEach(key => {
     if (!process.env[key]) console.warn(`⚠️ UWAGA: Brak zmiennej ${key}`);
 });
 
 const app = express();
 // --- POPRAWKA DLA RENDER (Trust Proxy) ---
-// To naprawia błąd "ValidationError: The 'X-Forwarded-For' header is set..."
 app.set('trust proxy', 1); 
 
 const PORT = process.env.PORT || 3000;
@@ -35,7 +35,6 @@ const BUCKET_NAME = process.env.GCS_BUCKET_NAME;
 
 if (process.env.GOOGLE_CREDENTIALS_BASE64) {
     try {
-        // Dekodujemy klucz z Base64 (to co ustawiłaś w Renderze)
         const credentials = JSON.parse(
             Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString()
         );
@@ -48,7 +47,6 @@ if (process.env.GOOGLE_CREDENTIALS_BASE64) {
         console.error('❌ Błąd klucza GCS:', e);
     }
 } else {
-    // Fallback dla testów lokalnych (jeśli będziesz kiedyś potrzebować)
     storage = new Storage({ projectId: process.env.GCS_PROJECT_ID });
     console.log('ℹ️ GCS: Tryb domyślny');
 }
@@ -63,7 +61,6 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", "blob:"], 
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            // Zezwalamy na zdjęcia z Google Storage
             imgSrc: ["'self'", "data:", "https://storage.googleapis.com"],
             connectSrc: ["'self'", "https://www.google-analytics.com"], 
             frameSrc: ["'none'"],
@@ -79,7 +76,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- LIMITY ---
-app.use('/api/', rateLimit({ windowMs: 15*60*1000, max: 200 })); // API limit
+app.use('/api/', rateLimit({ windowMs: 15*60*1000, max: 200 })); 
 const authLimiter = rateLimit({ windowMs: 60*60*1000, max: 15, message: 'Za dużo prób logowania.' });
 
 // --- BAZA DANYCH ---
@@ -91,11 +88,14 @@ const pool = new Pool({
 // --- UPLOAD (MULTER) ---
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024, files: 5 } // Max 10MB
+    limits: { fileSize: 10 * 1024 * 1024, files: 5 } 
 });
 
-// --- EMAIL ---
-const transporter = nodemailer.createTransport(new BrevoTransport({ apiKey: process.env.BREVO_API_KEY || 'test' }));
+// --- KONFIGURACJA MAILINGU (BREVO) ---
+// Wykorzystujemy Twoją zmienną BREVO_API_KEY
+const transporter = nodemailer.createTransport(new BrevoTransport({ 
+    apiKey: process.env.BREVO_API_KEY 
+}));
 
 // --- MIDDLEWARE AUTH ---
 const authenticateToken = (req, res, next) => {
@@ -160,6 +160,55 @@ app.delete('/api/albums/:id', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- API: WYSYŁKA MAILA (NAPRAWIONE) ---
+// Ten endpoint odpowiada za wysyłkę linku do klienta z panelu admina
+app.post('/api/send-link', authenticateToken, async (req, res) => {
+    const { clientEmail, albumTitle, link } = req.body;
+
+    if (!clientEmail || !link) {
+        return res.status(400).json({ error: 'Brak adresu email lub linku.' });
+    }
+
+    try {
+        // Pobieramy Twojego maila ze zmiennych środowiskowych (jberlik8@gmail.com)
+        const senderEmail = process.env.EMAIL_USER;
+
+        if (!senderEmail) {
+            throw new Error("Brak ustawionej zmiennej EMAIL_USER w Renderze!");
+        }
+
+        const info = await transporter.sendMail({
+            from: `Julia Berlik Foto <${senderEmail}>`, // To jest kluczowe dla Brevo
+            to: clientEmail,
+            subject: `Twoja sesja zdjęciowa: ${albumTitle} - Wybór Zdjęć`,
+            html: `
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; background-color: #ffffff;">
+                    <h2 style="color: #1a1a1a; text-transform: uppercase; letter-spacing: 1px;">Witaj!</h2>
+                    <p style="color: #555; line-height: 1.6;">Twoje zdjęcia z sesji <strong>"${albumTitle}"</strong> są już gotowe do obejrzenia.</p>
+                    <p style="color: #555; line-height: 1.6;">Kliknij poniższy przycisk, aby przejść do galerii i wybrać swoje ulubione ujęcia.</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${link}" style="background-color: #c5a059; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 4px; font-weight: bold; letter-spacing: 1px; display: inline-block;">PRZEJDŹ DO GALERII</a>
+                    </div>
+
+                    <p style="font-size: 12px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
+                        Jeśli przycisk nie działa, skopiuj ten link do przeglądarki:<br>
+                        <a href="${link}" style="color: #c5a059;">${link}</a>
+                    </p>
+                </div>
+            `
+        });
+
+        console.log('✅ Email z linkiem wysłany. ID:', info.messageId);
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('❌ Błąd wysyłania maila (Brevo):', err);
+        // Zwracamy błąd JSON, aby frontend mógł go wyświetlić w dymku
+        res.status(500).json({ error: 'Nie udało się wysłać maila. Sprawdź logi.' });
+    }
+});
+
 // --- API: UPLOAD (GOOGLE STORAGE) ---
 app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req, res) => {
     const { albumId } = req.body;
@@ -172,22 +221,17 @@ app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req
         const results = [];
         for (const file of req.files) {
             try {
-                // 1. Sharp (Kompresja)
                 const buffer = await sharp(file.buffer)
                     .rotate().resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
                     .jpeg({ quality: 80, mozjpeg: true }).toBuffer();
 
-                // 2. Upload do GCS
                 const ext = path.extname(file.originalname).toLowerCase();
                 const filename = `albums/${albumId}/${uuidv4()}${ext}`;
                 const blob = bucket.file(filename);
                 
                 await blob.save(buffer, { contentType: file.mimetype, resumable: false });
-
-                // 3. Link publiczny
                 const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
 
-                // 4. Baza
                 const dbRes = await pool.query(
                     'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
                     [albumId, publicUrl, filename, file.originalname]
@@ -212,6 +256,7 @@ app.get('/api/gallery/:token', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- API: ZATWIERDZENIE WYBORU PRZEZ KLIENTA ---
 app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
@@ -226,13 +271,14 @@ app.post('/api/select', async (req, res) => {
         }
         await client.query('COMMIT');
 
-        // Powiadomienie
+        // Powiadomienie mailowe do Ciebie, że klient wybrał zdjęcia
         if (process.env.EMAIL_USER) {
             transporter.sendMail({
-                from: process.env.EMAIL_USER, to: process.env.EMAIL_USER,
+                from: `System Proofingu <${process.env.EMAIL_USER}>`, 
+                to: process.env.EMAIL_USER, // Wysyła na Twój email (jberlik8@gmail.com)
                 subject: `📸 Wybór zakończony: ${alb.rows[0].client_name}`,
                 text: `Klient wybrał ${photoIds.length} zdjęć w albumie "${alb.rows[0].title}".`
-            }).catch(console.error);
+            }).catch(err => console.error("Błąd powiadomienia admina:", err));
         }
         res.json({ success: true });
     } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } 
