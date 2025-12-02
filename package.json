@@ -1,16 +1,15 @@
 {
   "name": "secure-photo-proofing",
-  "version": "3.0.0",
-  "description": "Profesjonalny system proofingu zdjęć - Secure Edition",
+  "version": "3.1.0",
+  "description": "Profesjonalny system proofingu zdjęć - GCS Edition",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "build": "echo 'No build step required'"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.7.0",
     "bcrypt": "^5.1.0",
-    "cloudinary": "^1.37.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
@@ -23,7 +22,6 @@
     "nodemailer-brevo-transport": "^2.2.1",
     "pg": "^8.11.0",
     "sharp": "^0.32.1",
-    "streamifier": "^0.1.1",
     "uuid": "^9.0.0"
   },
   "engines": {
