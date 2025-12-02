@@ -4,87 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Julia Berlik Foto | Strefa Klienta</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="description" content="Profesjonalna fotografia z pasją - wybierz swoje ulubione zdjęcia">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     
+    <!-- TOAST NOTIFICATIONS -->
     <div id="toast-container">
         <div id="toast-text">Komunikat</div>
     </div>
 
+    <!-- LIGHTBOX Z FULLSCREEN -->
     <div id="lightbox">
-        <div id="lb-close" class="lb-close">&times;</div>
-        <div id="lb-prev" class="lb-nav lb-prev">&#10094;</div>
-        <div id="lb-next" class="lb-nav lb-next">&#10095;</div>
+        <div id="lb-close" class="lb-close" title="Zamknij (Esc)">&times;</div>
+        <div id="lb-prev" class="lb-nav lb-prev" title="Poprzednie (←)">&#10094;</div>
+        <div id="lb-next" class="lb-nav lb-next" title="Następne (→)">&#10095;</div>
+        <div id="lb-fullscreen" class="lb-fullscreen" title="Pełny ekran (F)">⛶</div>
         <img id="lightbox-img" src="" alt="Podgląd">
         <div class="lb-controls">
             <button id="lb-select-btn" class="lb-select-btn">Wybierz zdjęcie</button>
+            <div class="lb-counter"><span id="lb-current">1</span> / <span id="lb-total">1</span></div>
         </div>
     </div>
 
-    <div class="brand-title">
-        Julia Berlik <span>Foto</span>
-    </div>
+    <!-- NAVIGATION BAR -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="brand-logo">Julia Berlik <span>Foto</span></div>
+            <button class="nav-toggle" id="nav-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+                <li><a href="/" class="nav-link">Strona główna</a></li>
+                <li><a href="#" class="nav-link" data-view="about">O mnie</a></li>
+                <li><a href="#" class="nav-link" data-view="faq">FAQ</a></li>
+                <li><a href="#" class="nav-link" data-view="my-sessions">Moje Sesje</a></li>
+                <li><a href="#" class="nav-link" data-view="login">Panel Fotografa</a></li>
+            </ul>
+        </div>
+    </nav>
 
+    <!-- VIEW: LOGIN -->
     <div id="view-login" class="container hidden">
         <div class="card">
             <h2>Panel Fotografa</h2>
-            <p style="color:#888; margin-bottom:20px;">Zaloguj się, aby zarządzać sesjami</p>
+            <p class="text-muted mb-lg">Zaloguj się, aby zarządzać sesjami</p>
             <form id="login-form">
                 <input type="email" id="email" placeholder="Email" required value="admin@example.com" autocomplete="username">
                 <input type="password" id="password" placeholder="Hasło" required value="admin123" autocomplete="current-password">
-                <button type="submit" style="width:100%">Wejdź</button>
+                <button type="submit" class="btn-primary">Zaloguj się</button>
             </form>
         </div>
     </div>
 
+    <!-- VIEW: DASHBOARD -->
     <div id="view-dashboard" class="container hidden fade-in">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
-            <h3>Zarządzanie Sesjami</h3>
+        <header class="dashboard-header">
             <div>
-                <button id="btn-new-session">+ Nowa Sesja</button>
-                <button id="btn-logout" style="background:#eee; color:#333; margin-left:10px;">Wyloguj</button>
+                <h2>Zarządzanie Sesjami</h2>
+                <p class="text-muted">Panel administracyjny fotografa</p>
+            </div>
+            <div class="dashboard-actions">
+                <button id="btn-new-session" class="btn-primary">+ Nowa Sesja</button>
+                <button id="btn-logout" class="btn-secondary">Wyloguj</button>
             </div>
         </header>
         <div id="albums-list"></div>
     </div>
 
+    <!-- VIEW: UPLOAD -->
     <div id="view-upload" class="container hidden fade-in">
-        <button id="btn-upload-back" style="background:transparent; color:#333; border:1px solid #ddd; margin-bottom:20px;">← Wróć</button>
-        <div class="card" style="max-width:800px;">
-            <h2>Utwórz Sesję</h2>
+        <button id="btn-upload-back" class="btn-secondary mb-lg">← Wróć do panelu</button>
+        <div class="card upload-card">
+            <h2>Utwórz Nową Sesję</h2>
             <form id="upload-form">
                 <label for="albumTitle">Nazwa Sesji</label>
-                <input type="text" id="albumTitle" placeholder="np. Ślub Ani" required>
+                <input type="text" id="albumTitle" placeholder="np. Ślub Ani i Marka" required>
                 
                 <label for="clientName">Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
                 
-                <label for="clientEmailUpload">Email (Opcjonalnie)</label>
-                <input type="email" id="clientEmailUpload" placeholder="Jeśli podasz, wyślemy link">
+                <label for="clientEmailUpload">Email Klienta (Opcjonalnie)</label>
+                <input type="email" id="clientEmailUpload" placeholder="Automatycznie wyślemy link do galerii">
                 
-                <div style="border:2px dashed #ddd; padding:30px; margin:20px 0;">
-                    <label for="files" style="display:block; margin-bottom:10px;">Wybierz pliki JPG (System automatycznie podzieli upload)</label>
-                    <input type="file" id="files" multiple accept="image/jpeg" required>
+                <!-- DRAG & DROP ZONE -->
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-icon">📸</div>
+                    <div class="dropzone-text">
+                        <p><strong>Przeciągnij zdjęcia tutaj</strong></p>
+                        <p class="text-muted">lub kliknij, aby wybrać pliki</p>
+                        <p class="text-muted mt-sm">Format: JPG/JPEG (max 25MB/plik)</p>
+                    </div>
+                    <input type="file" id="files" multiple accept="image/jpeg,image/jpg" style="display:none">
                 </div>
-                <button type="submit" id="uploadBtn" style="width:100%">Rozpocznij Upload</button>
+                
+                <div id="file-preview" class="file-preview"></div>
+                
+                <button type="submit" id="uploadBtn" class="btn-primary">Rozpocznij Upload</button>
             </form>
-            <div id="upload-status" style="margin-top:20px; font-weight:bold;"></div>
+            
+            <!-- PROGRESS BAR -->
+            <div id="upload-progress" class="upload-progress hidden">
+                <div class="progress-header">
+                    <span id="progress-text">Przesyłanie zdjęć...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p class="text-muted mt-sm" id="progress-details">Przygotowywanie...</p>
+            </div>
         </div>
     </div>
 
+    <!-- VIEW: GALLERY -->
     <div id="view-gallery" class="hidden">
         <div class="container">
             <div class="gallery-container fade-in">
                 <header class="gallery-header">
                     <div>
-                        <h2 id="gallery-title" style="font-size:1.5rem; margin:0;">Tytuł</h2>
-                        <p style="font-size:0.9rem; color:#888;">Kliknij serce na zdjęciu, aby je wybrać.</p>
+                        <h2 id="gallery-title">Tytuł Sesji</h2>
+                        <p class="text-muted">Kliknij serce ❤ na zdjęciu, aby je wybrać</p>
                     </div>
-                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                        <span id="selection-count" style="font-weight:bold; color:var(--accent); font-size:1.2rem;">0 wybranych</span>
-                        <button id="saveBtn">Zatwierdź Wybór</button>
+                    <div class="gallery-header-actions">
+                        <span id="selection-count">0 wybranych</span>
+                        <button id="saveBtn" class="btn-primary">Zatwierdź Wybór</button>
                     </div>
                 </header>
 
@@ -98,27 +145,213 @@
         </div>
     </div>
 
+    <!-- VIEW: ABOUT -->
+    <div id="view-about" class="container hidden fade-in">
+        <div class="content-page">
+            <div class="page-header">
+                <h1>O mnie</h1>
+                <div class="header-divider"></div>
+            </div>
+            
+            <div class="about-content">
+                <div class="about-image">
+                    <img src="/logo.jpg" alt="Julia Berlik" class="profile-photo">
+                </div>
+                
+                <div class="about-text">
+                    <h3>Witaj w moim świecie fotografii!</h3>
+                    <p>Jestem Julia Berlik – fotografką z pasją do uchwycenia najpiękniejszych momentów w życiu. Od lat specjalizuję się w fotografii ślubnej, portretowej i rodzinnej.</p>
+                    
+                    <p>Moja filozofia to naturalna elegancja i autentyczne emocje. Wierzę, że najlepsze zdjęcia powstają wtedy, gdy czujesz się komfortowo i możesz być sobą.</p>
+                    
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <span class="feature-icon">📸</span>
+                            <div>
+                                <h4>Profesjonalne Podejście</h4>
+                                <p>Nowoczesny sprzęt i doświadczenie w branży</p>
+                            </div>
+                        </div>
+                        
+                        <div class="feature-item">
+                            <span class="feature-icon">❤️</span>
+                            <div>
+                                <h4>Z Pasją</h4>
+                                <p>Każda sesja to dla mnie wyjątkowe przeżycie</p>
+                            </div>
+                        </div>
+                        
+                        <div class="feature-item">
+                            <span class="feature-icon">⭐</span>
+                            <div>
+                                <h4>Indywidualne Podejście</h4>
+                                <p>Dostosowuję się do Twoich potrzeb i oczekiwań</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="cta-section">
+                        <h3>Gotowy na swoją sesję?</h3>
+                        <p>Skontaktuj się ze mną, aby omówić szczegóły</p>
+                        <a href="mailto:kontakt@juliaberlik.pl" class="btn-primary">Napisz do mnie</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: FAQ -->
+    <div id="view-faq" class="container hidden fade-in">
+        <div class="content-page">
+            <div class="page-header">
+                <h1>Często Zadawane Pytania</h1>
+                <div class="header-divider"></div>
+                <p class="text-muted">Odpowiedzi na najczęstsze pytania dotyczące wyboru zdjęć</p>
+            </div>
+            
+            <div class="faq-list">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Jak wybrać zdjęcia z galerii?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>To bardzo proste! Kliknij na serce ❤ w prawym górnym rogu zdjęcia. Wybrane zdjęcia będą miały złotą ramkę. Możesz przeglądać zdjęcia w trybie pełnoekranowym, klikając na nie.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Ile zdjęć mogę wybrać?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Limit zależy od Twojego pakietu. Zazwyczaj jest to 30-50 zdjęć dla sesji standardowej lub 100-150 dla sesji ślubnej. Aktualny licznik wybranych zdjęć jest zawsze widoczny na górze galerii.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Jak długo mam dostęp do galerii?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Link do galerii jest aktywny przez 30 dni od daty otrzymania. Po tym czasie możesz poprosić o ponowne udostępnienie.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Kiedy otrzymam gotowe zdjęcia?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Po zatwierdzeniu wyboru, zdjęcia są obrabiane i wysyłane mailem w ciągu 7-14 dni roboczych. Otrzymasz paczkę ZIP z pełną rozdzielczością.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Co jeśli zmienię zdanie?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Możesz zmieniać wybór ile razy chcesz przed jego zatwierdzeniem. Po kliknięciu "Zatwierdź Wybór" możesz jeszcze poprosić o jedną zmianę w ciągu 48h.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Jaka jest jakość zdjęć w galerii?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Zdjęcia w galerii to wersje proof (wodny znak + zmniejszona rozdzielczość) do wygodnego przeglądania. Gotowe, wybrane zdjęcia otrzymasz w pełnej jakości bez znaku wodnego.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Czy mogę pobrać wszystkie zdjęcia?</h3>
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Galeria służy tylko do wyboru zdjęć. Otrzymasz wyłącznie te zdjęcia, które wybierzesz i zatwierdzisz. Jeśli chcesz otrzymać wszystkie zdjęcia z sesji, skontaktuj się bezpośrednio - dostępne są specjalne pakiety.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: MY SESSIONS -->
+    <div id="view-my-sessions" class="container hidden fade-in">
+        <div class="content-page">
+            <div class="page-header">
+                <h1>Moje Sesje</h1>
+                <div class="header-divider"></div>
+                <p class="text-muted">Zobacz historię swoich sesji fotograficznych</p>
+            </div>
+            
+            <div class="session-lookup">
+                <h3>Znajdź swoją sesję</h3>
+                <p class="text-muted mb-md">Wpisz swój adres email, aby zobaczyć wszystkie sesje</p>
+                <form id="session-lookup-form" class="lookup-form">
+                    <input type="email" id="lookup-email" placeholder="twoj@email.pl" required>
+                    <button type="submit" class="btn-primary">Szukaj moich sesji</button>
+                </form>
+            </div>
+            
+            <div id="sessions-result" class="sessions-result"></div>
+        </div>
+    </div>
+
     <script>
         const API = '/api';
 
+        // ROUTER
         const router = {
-            views: ['login', 'dashboard', 'upload', 'gallery'],
+            views: ['login', 'dashboard', 'upload', 'gallery', 'about', 'faq', 'my-sessions'],
             go(viewId) {
+                // Ukryj wszystkie widoki
                 this.views.forEach(v => {
                     const el = document.getElementById('view-' + v);
                     if(el) el.classList.add('hidden');
                 });
+                
+                // Pokaż aktywny
                 const active = document.getElementById('view-' + viewId);
-                if(active) active.classList.remove('hidden');
-                if(viewId === 'gallery') document.querySelector('.brand-title').style.display = 'block';
+                if(active) {
+                    active.classList.remove('hidden');
+                    active.classList.add('fade-in');
+                }
+                
+                // Aktualizuj aktywny link w nav
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if(link.dataset.view === viewId) link.classList.add('active');
+                });
+                
+                // Scroll do góry
+                window.scrollTo(0, 0);
             }
         };
 
         const app = {
-            state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all', MAX_SELECTION: 1000 }, // Zwiększyłem limit selekcji
+            state: { 
+                selected: new Set(), 
+                currentAlbumToken: null, 
+                photos: [], 
+                currentPhotoIndex: 0, 
+                viewFilter: 'all', 
+                MAX_SELECTION: 1000,
+                uploadedFiles: []
+            },
 
             async init() {
                 this.setupEventListeners();
+                this.setupDragAndDrop();
+                this.setupFAQ();
+                
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
@@ -127,47 +360,187 @@
                     try {
                         const res = await fetch(API + '/auth/check', { credentials: 'include' }); 
                         if(res.ok) this.loadDashboard();
-                        else router.go('login');
-                    } catch(e) { router.go('login'); }
+                        else router.go('about'); // Domyślnie pokazuj "O mnie"
+                    } catch(e) { router.go('about'); }
                 }
             },
 
             setupEventListeners() {
+                // Navigation
+                document.getElementById('nav-toggle')?.addEventListener('click', () => {
+                    document.getElementById('nav-menu').classList.toggle('active');
+                });
+                
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const view = link.dataset.view || 'about';
+                        router.go(view);
+                        document.getElementById('nav-menu').classList.remove('active');
+                    });
+                });
+
+                // Forms
                 document.getElementById('login-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.login(); });
                 document.getElementById('upload-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.createAlbum(); });
+                document.getElementById('session-lookup-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.lookupSessions(); });
+                
+                // Buttons
                 document.getElementById('btn-new-session')?.addEventListener('click', () => router.go('upload'));
                 document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
                 document.getElementById('btn-upload-back')?.addEventListener('click', () => router.go('dashboard'));
                 document.getElementById('saveBtn')?.addEventListener('click', () => this.saveSelection());
-                document.getElementById('filter-all')?.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
-                document.getElementById('filter-selected')?.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
+                
+                // Filters
+                document.getElementById('filter-all')?.addEventListener('click', (e) => this.setFilter('all'));
+                document.getElementById('filter-selected')?.addEventListener('click', (e) => this.setFilter('selected'));
+                
+                // Lightbox
                 document.getElementById('lb-close')?.addEventListener('click', () => this.closeLightbox());
                 document.getElementById('lb-prev')?.addEventListener('click', () => this.prevPhoto());
                 document.getElementById('lb-next')?.addEventListener('click', () => this.nextPhoto());
                 document.getElementById('lb-select-btn')?.addEventListener('click', () => this.toggleSelectionFromLightbox());
+                document.getElementById('lb-fullscreen')?.addEventListener('click', () => this.toggleFullscreen());
                 
-                // Obsługa gridu
+                // Grid click handler
                 document.getElementById('grid')?.addEventListener('click', (e) => {
                     const card = e.target.closest('.photo-card');
                     if (card) {
-                        const originalIndex = card.dataset.index;
+                        const originalIndex = parseInt(card.dataset.index);
                         if (e.target.closest('.heart-icon')) {
-                            this.toggleSelection(parseInt(originalIndex));
+                            this.toggleSelection(originalIndex);
                         } else {
-                            this.openLightbox(parseInt(originalIndex));
+                            this.openLightbox(originalIndex);
                         }
                     }
                 });
                 
-                // Klawisze
+                // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
-                    if (!document.getElementById('lightbox').classList.contains('active')) return;
-                    if (e.key === 'ArrowLeft') this.prevPhoto();
-                    if (e.key === 'ArrowRight') this.nextPhoto();
+                    const lightbox = document.getElementById('lightbox');
+                    if (!lightbox.classList.contains('active')) return;
+                    
+                    if (e.key === 'ArrowLeft' || e.key === 'a') this.prevPhoto();
+                    if (e.key === 'ArrowRight' || e.key === 'd') this.nextPhoto();
                     if (e.key === 'Escape') this.closeLightbox();
                     if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
+                    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); this.toggleFullscreen(); }
                 });
-                document.body.addEventListener('contextmenu', (e) => e.preventDefault());
+                
+                // Touch gestures for mobile
+                this.setupTouchGestures();
+                
+                // Prevent right-click
+                document.body.addEventListener('contextmenu', (e) => {
+                    if(e.target.tagName === 'IMG') e.preventDefault();
+                });
+            },
+
+            setupDragAndDrop() {
+                const dropzone = document.getElementById('dropzone');
+                const fileInput = document.getElementById('files');
+                
+                if(!dropzone || !fileInput) return;
+                
+                // Click to select
+                dropzone.addEventListener('click', () => fileInput.click());
+                
+                // Drag events
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+                
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, () => {
+                        dropzone.classList.add('dragover');
+                    });
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, () => {
+                        dropzone.classList.remove('dragover');
+                    });
+                });
+                
+                dropzone.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    fileInput.files = files;
+                    this.previewFiles(files);
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    this.previewFiles(e.target.files);
+                });
+            },
+
+            previewFiles(files) {
+                const preview = document.getElementById('file-preview');
+                preview.innerHTML = '';
+                
+                if(files.length === 0) return;
+                
+                const fileList = Array.from(files);
+                const validFiles = fileList.filter(f => f.type.match('image/jpeg'));
+                
+                if(validFiles.length !== fileList.length) {
+                    this.showToast('Tylko pliki JPG/JPEG są akceptowane', 'error');
+                }
+                
+                preview.innerHTML = `
+                    <div class="file-preview-summary">
+                        <span class="file-count">📸 ${validFiles.length} zdjęć wybranych</span>
+                        <span class="file-size">${this.formatBytes(validFiles.reduce((sum, f) => sum + f.size, 0))}</span>
+                    </div>
+                `;
+            },
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            },
+
+            setupTouchGestures() {
+                const lightbox = document.getElementById('lightbox');
+                let touchStartX = 0;
+                let touchEndX = 0;
+                
+                lightbox.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                
+                lightbox.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    this.handleSwipe();
+                }, { passive: true });
+                
+                const handleSwipe = () => {
+                    const swipeThreshold = 50;
+                    if (touchEndX < touchStartX - swipeThreshold) {
+                        this.nextPhoto(); // Swipe left
+                    }
+                    if (touchEndX > touchStartX + swipeThreshold) {
+                        this.prevPhoto(); // Swipe right
+                    }
+                };
+                
+                this.handleSwipe = handleSwipe;
+            },
+
+            setupFAQ() {
+                document.addEventListener('click', (e) => {
+                    const question = e.target.closest('.faq-question');
+                    if(question) {
+                        const item = question.parentElement;
+                        item.classList.toggle('active');
+                    }
+                });
             },
 
             showToast(message, type = 'success') {
@@ -175,8 +548,15 @@
                 const text = document.getElementById('toast-text');
                 text.innerText = message;
                 toast.classList.add('active');
-                if (type === 'error') toast.style.background = '#ef4444';
-                else toast.style.background = '#1a1a1a';
+                
+                if (type === 'error') {
+                    toast.style.background = 'var(--color-error)';
+                } else if (type === 'warning') {
+                    toast.style.background = 'var(--color-warning)';
+                } else {
+                    toast.style.background = 'var(--color-primary)';
+                }
+                
                 setTimeout(() => { toast.classList.remove('active'); }, 3500);
             },
 
@@ -185,74 +565,91 @@
                 const password = document.getElementById('password').value;
                 try {
                     const res = await fetch(API + '/auth/login', { 
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ email, password }), credentials: 'include'
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ email, password }), 
+                        credentials: 'include'
                     });
                     const data = await res.json();
                     if (data.error) throw new Error(data.error);
+                    this.showToast('Zalogowano pomyślnie!', 'success');
                     this.loadDashboard();
-                } catch (err) { alert(err.message); }
+                } catch (err) { 
+                    this.showToast(err.message, 'error'); 
+                }
             },
 
             async logout() { 
                 await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' });
-                router.go('login'); 
+                this.showToast('Wylogowano', 'success');
+                router.go('about'); 
             },
 
-            // --- GŁÓWNA ZMIANA: NOWY DASHBOARD Z PRZYCISKIEM PAKOWANIA ---
             async loadDashboard() {
                 router.go('dashboard');
                 try {
                     const res = await fetch(API + '/admin/albums', { credentials: 'include' });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
-                    if(albums.length === 0) { container.innerHTML = '<p style="text-align:center; color:#888;">Brak albumów.</p>'; return; }
+                    
+                    if(albums.length === 0) { 
+                        container.innerHTML = '<div class="empty-state"><p>Brak albumów. Utwórz pierwszą sesję!</p></div>'; 
+                        return; 
+                    }
                     
                     container.innerHTML = albums.map(a => `
-                        <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
-                            <div style="margin-bottom:10px;">
-                                <h3 style="margin:0 0 5px 0; font-size:1.2rem;">${a.title}</h3>
-                                <p style="color:#666; font-size:0.9rem; margin:0;">${a.client_name} • ${a.photo_count || 0} zdjęć • <strong style="color:var(--accent)">Wybrano: ${a.selection_count || 0}</strong></p>
+                        <div class="album-item">
+                            <div class="album-info">
+                                <h3>${a.title}</h3>
+                                <p class="text-muted">
+                                    ${a.client_name} • ${a.photo_count || 0} zdjęć • 
+                                    <strong style="color: var(--color-accent)">Wybrano: ${a.selection_count || 0}</strong>
+                                </p>
                             </div>
-                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                <button data-album-id="${a.id}" class="btn-copy btn-copy-filenames">📋 Nazwy</button>
-                                
+                            <div class="album-actions">
+                                <button class="btn-copy" data-album-id="${a.id}">📋 Nazwy</button>
                                 <button class="btn-auto-send" 
                                     data-id="${a.id}" 
                                     data-title="${a.title}"
                                     data-client="${a.client_name}"
-                                    data-selected="${a.selection_count}"
-                                    style="background:#1a1a1a; border:1px solid #1a1a1a;">
+                                    data-selected="${a.selection_count}">
                                     🎁 Spakuj i Wyślij
                                 </button>
-                                
-                                <a href="/gallery/${a.access_token}" target="_blank"><button style="background:transparent; color:#333; border:1px solid #ddd;">Podgląd</button></a>
-                                <button data-album-id="${a.id}" class="btn-danger btn-delete-album">Usuń</button>
+                                <a href="/gallery/${a.access_token}" target="_blank">
+                                    <button class="btn-secondary">👁 Podgląd</button>
+                                </a>
+                                <button class="btn-danger btn-delete-album" data-album-id="${a.id}">🗑 Usuń</button>
                             </div>
-                        </div>`).join('');
+                        </div>
+                    `).join('');
                     
-                    // Event Listenery
-                    document.querySelectorAll('.btn-copy-filenames').forEach(btn => btn.addEventListener('click', () => this.copyFilenames(btn.dataset.albumId)));
-                    document.querySelectorAll('.btn-delete-album').forEach(btn => btn.addEventListener('click', () => this.deleteAlbum(btn.dataset.albumId)));
+                    // Event listeners
+                    document.querySelectorAll('.btn-copy').forEach(btn => {
+                        btn.addEventListener('click', () => this.copyFilenames(btn.dataset.albumId));
+                    });
+                    
+                    document.querySelectorAll('.btn-delete-album').forEach(btn => {
+                        btn.addEventListener('click', () => this.deleteAlbum(btn.dataset.albumId));
+                    });
 
-                    // --- LOGIKA AUTOMATU (ZIP + MAIL) ---
                     document.querySelectorAll('.btn-auto-send').forEach(btn => {
                         btn.addEventListener('click', async () => {
                             const id = btn.dataset.id;
                             const title = btn.dataset.title;
                             const count = parseInt(btn.dataset.selected);
 
-                            if(count === 0) return alert('Klient nie wybrał jeszcze żadnych zdjęć! Nie ma co pakować.');
+                            if(count === 0) {
+                                return this.showToast('Klient nie wybrał jeszcze żadnych zdjęć!', 'warning');
+                            }
                             
                             const email = prompt(`Podaj email klienta (${btn.dataset.client}), aby wysłać paczkę ZIP (${count} zdjęć):`);
                             if(!email) return;
 
                             btn.innerText = "⏳ Pakowanie...";
                             btn.disabled = true;
-                            this.showToast('Serwer pakuje zdjęcia... To może potrwać do minuty.', 'success');
+                            this.showToast('Serwer pakuje zdjęcia... To może potrwać chwilę.', 'success');
 
                             try {
-                                // 1. Generuj ZIP na serwerze
                                 const resZip = await fetch(API + '/auto-deliver', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -268,7 +665,6 @@
                                 const dataZip = await resZip.json();
                                 btn.innerText = "📧 Wysyłanie...";
 
-                                // 2. Wyślij Maila z linkiem do ZIP
                                 const resMail = await fetch(API + '/send-delivery', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -282,14 +678,14 @@
                                 });
 
                                 if(resMail.ok) {
-                                    alert(`✅ Sukces! Wysłano link do pobrania paczki ZIP (${dataZip.count} zdjęć) na adres ${email}.`);
+                                    this.showToast(`✅ Wysłano link do ${count} zdjęć na ${email}`, 'success');
                                 } else {
-                                    throw new Error('ZIP utworzony, ale wystąpił błąd przy wysyłce maila.');
+                                    throw new Error('ZIP utworzony, ale błąd wysyłki maila');
                                 }
 
                             } catch (e) {
                                 console.error(e);
-                                alert('Błąd: ' + e.message);
+                                this.showToast('Błąd: ' + e.message, 'error');
                             } finally {
                                 btn.innerText = "🎁 Spakuj i Wyślij";
                                 btn.disabled = false;
@@ -297,33 +693,55 @@
                         });
                     });
 
-                } catch (err) { console.error(err); }
+                } catch (err) { 
+                    console.error(err); 
+                    this.showToast('Błąd ładowania albumów', 'error');
+                }
             },
 
             async copyFilenames(albumId) {
                 try {
                     const res = await fetch(API + '/admin/albums/' + albumId + '/files', { credentials: 'include' });
-                    // Jeśli ten endpoint nie istnieje w serwerze, trzeba go dodać lub zignorować
-                    // W Twoim kodzie server.js go nie widzę, ale funkcja była w oryginale.
-                    // Zakładam że to funkcja dodatkowa. Jeśli nie zadziała, to nic nie zepsuje.
                     const data = await res.json();
                     if(data.filenames?.length > 0) {
-                        navigator.clipboard.writeText(data.filenames.join(', ')); this.showToast('Skopiowano listę!', 'success');
-                    } else { this.showToast('Błąd kopiowania lub brak zdjęć.', 'error'); }
-                } catch (err) { this.showToast('Funkcja kopiowania niedostępna.', 'error'); }
+                        await navigator.clipboard.writeText(data.filenames.join(', ')); 
+                        this.showToast('Skopiowano listę nazw!', 'success');
+                    } else { 
+                        this.showToast('Brak zdjęć do skopiowania', 'error'); 
+                    }
+                } catch (err) { 
+                    this.showToast('Funkcja niedostępna w tej przeglądarce', 'error'); 
+                }
             },
 
             async deleteAlbum(id) {
-                if(!confirm('Czy na pewno chcesz usunąć ten album?')) return;
+                if(!confirm('Czy na pewno chcesz usunąć ten album? Ta operacja jest nieodwracalna.')) return;
+                
                 try {
-                    const res = await fetch(API + '/albums/' + id, { method: 'DELETE', credentials: 'include' });
-                    if(res.ok) { this.showToast('Usunięto.', 'success'); this.loadDashboard(); }
-                } catch (err) { this.showToast('Błąd usuwania.', 'error'); }
+                    const res = await fetch(API + '/albums/' + id, { 
+                        method: 'DELETE', 
+                        credentials: 'include' 
+                    });
+                    
+                    if(res.ok) { 
+                        this.showToast('Album usunięty', 'success'); 
+                        this.loadDashboard(); 
+                    } else {
+                        throw new Error('Błąd usuwania');
+                    }
+                } catch (err) { 
+                    this.showToast('Błąd usuwania albumu', 'error'); 
+                }
             },
 
             async createAlbum() {
                 const btn = document.getElementById('uploadBtn');
-                const statusDiv = document.getElementById('upload-status');
+                const progressDiv = document.getElementById('upload-progress');
+                const progressFill = document.getElementById('progress-fill');
+                const progressPercent = document.getElementById('progress-percent');
+                const progressText = document.getElementById('progress-text');
+                const progressDetails = document.getElementById('progress-details');
+                
                 const title = document.getElementById('albumTitle').value;
                 const clientName = document.getElementById('clientName').value;
                 const clientEmail = document.getElementById('clientEmailUpload').value;
@@ -331,133 +749,252 @@
                 const files = Array.from(filesInput.files);
 
                 if(files.length === 0) return this.showToast('Wybierz zdjęcia', 'error');
-                btn.disabled = true; btn.innerText = "Przetwarzanie...";
+                
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading"></span> Przetwarzanie...';
+                progressDiv.classList.remove('hidden');
                 
                 try {
-                    // 1. Album
+                    // 1. Create album
+                    progressText.innerText = 'Tworzenie albumu...';
+                    progressDetails.innerText = 'Krok 1/3';
+                    progressFill.style.width = '10%';
+                    progressPercent.innerText = '10%';
+                    
                     const res1 = await fetch(API + '/albums', { 
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ title, clientName }), credentials: 'include'
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ title, clientName }), 
+                        credentials: 'include'
                     });
+                    
                     if(!res1.ok) throw new Error('Błąd tworzenia albumu');
                     const albumData = await res1.json();
                     const albumId = albumData.id;
                     const accessToken = albumData.access_token;
 
-                    // 2. Upload
-                    const BATCH_SIZE = 3; let uploaded = 0;
+                    // 2. Upload files
+                    progressText.innerText = 'Wysyłanie zdjęć...';
+                    progressDetails.innerText = 'Krok 2/3';
+                    
+                    const BATCH_SIZE = 3;
+                    let uploaded = 0;
+                    
                     for (let i = 0; i < files.length; i += BATCH_SIZE) {
                         const chunk = files.slice(i, i + BATCH_SIZE);
                         const formData = new FormData();
                         formData.append('albumId', albumId);
                         chunk.forEach(f => formData.append('photos', f));
-                        const progress = Math.round((uploaded / files.length) * 100);
-                        statusDiv.innerHTML = `Wysyłanie: ${progress}%`;
-                        const resUpload = await fetch(API + '/upload', { method: 'POST', body: formData, credentials: 'include' });
+                        
+                        const progress = Math.round(10 + (uploaded / files.length) * 70);
+                        progressFill.style.width = progress + '%';
+                        progressPercent.innerText = progress + '%';
+                        progressDetails.innerText = `Wysłano ${uploaded} z ${files.length} zdjęć...`;
+                        
+                        const resUpload = await fetch(API + '/upload', { 
+                            method: 'POST', 
+                            body: formData, 
+                            credentials: 'include' 
+                        });
+                        
                         if(!resUpload.ok) throw new Error('Błąd uploadu');
                         uploaded += chunk.length;
                     }
-                    statusDiv.innerHTML = "Wysyłanie plików zakończone!";
+                    
+                    progressFill.style.width = '90%';
+                    progressPercent.innerText = '90%';
 
-                    // 3. Email Powitalny (ten pierwszy, z linkiem do galerii)
+                    // 3. Send email
                     if (clientEmail) {
-                        statusDiv.innerText += " Wysyłanie maila...";
+                        progressText.innerText = 'Wysyłanie maila do klienta...';
+                        progressDetails.innerText = 'Krok 3/3';
+                        
                         const link = window.location.origin + '/gallery/' + accessToken;
                         
                         const resMail = await fetch(API + '/send-link', { 
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ clientEmail, albumTitle: title, link }), credentials: 'include'
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ clientEmail, albumTitle: title, link }), 
+                            credentials: 'include'
                         });
 
                         if (!resMail.ok) {
                             const errData = await resMail.json();
-                            throw new Error('Serwer odrzucił maila: ' + (errData.error || 'Nieznany błąd'));
+                            throw new Error('Album utworzony, ale błąd wysyłki maila: ' + (errData.error || ''));
                         }
-                        this.showToast('Wysłano do klienta!', 'success');
-                    } else { this.showToast('Gotowe!', 'success'); }
+                    }
                     
-                    setTimeout(() => this.loadDashboard(), 1500);
+                    progressFill.style.width = '100%';
+                    progressPercent.innerText = '100%';
+                    progressText.innerText = 'Gotowe!';
+                    progressDetails.innerText = 'Sesja została utworzona';
+                    
+                    this.showToast('Sesja utworzona pomyślnie!', 'success');
+                    
+                    setTimeout(() => {
+                        this.loadDashboard();
+                        progressDiv.classList.add('hidden');
+                    }, 1500);
+                    
                 } catch (err) { 
-                    statusDiv.innerText = "Błąd: " + err.message;
-                    this.showToast('Wystąpił błąd!', 'error'); 
+                    progressText.innerText = 'Błąd: ' + err.message;
+                    this.showToast('Wystąpił błąd podczas tworzenia sesji', 'error'); 
                     console.error(err);
-                } finally { btn.disabled = false; btn.innerText = "Rozpocznij Upload"; }
+                } finally { 
+                    btn.disabled = false; 
+                    btn.innerText = "Rozpocznij Upload"; 
+                }
             },
 
             async loadGallery(token) {
-                this.state.currentAlbumToken = token; router.go('gallery');
+                this.state.currentAlbumToken = token;
+                router.go('gallery');
+                
                 try {
-                    const res = await fetch(API + '/gallery/' + token); if(!res.ok) throw new Error();
+                    const res = await fetch(API + '/gallery/' + token);
+                    if(!res.ok) throw new Error('Nie znaleziono galerii');
+                    
                     const data = await res.json();
                     document.getElementById('gallery-title').innerText = data.album[0].title;
-                    this.state.selected = new Set(data.selections); this.state.photos = data.photos;
-                    this.renderGrid(); this.updateCounter();
-                } catch (e) { document.getElementById('view-gallery').innerHTML = "<h1>404</h1><p>Nie znaleziono galerii.</p>"; }
+                    this.state.selected = new Set(data.selections);
+                    this.state.photos = data.photos;
+                    
+                    this.renderGrid();
+                    this.updateCounter();
+                    
+                } catch (e) { 
+                    document.getElementById('view-gallery').innerHTML = `
+                        <div class="container">
+                            <div class="empty-state">
+                                <h1>404</h1>
+                                <p>Nie znaleziono galerii. Sprawdź link lub skontaktuj się z fotografem.</p>
+                            </div>
+                        </div>
+                    `;
+                }
             },
+
             renderGrid() {
                 const grid = document.getElementById('grid');
-                grid.innerHTML = this.state.photos.map((p, i) => {
+                const filter = this.state.viewFilter;
+                
+                const photosToShow = filter === 'all' 
+                    ? this.state.photos 
+                    : this.state.photos.filter(p => this.state.selected.has(p.id));
+                
+                grid.innerHTML = photosToShow.map((p, i) => {
+                    const originalIndex = this.state.photos.indexOf(p);
                     const sel = this.state.selected.has(p.id) ? 'selected' : '';
-                    return `<div class="photo-card ${sel}" data-index="${i}"><div class="heart-icon">${sel?'❤':'♡'}</div><img src="${p.proof_url}" loading="lazy"></div>`;
+                    return `
+                        <div class="photo-card ${sel}" data-index="${originalIndex}">
+                            <div class="heart-icon">${sel ? '❤' : '♡'}</div>
+                            <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie ${originalIndex + 1}">
+                        </div>
+                    `;
                 }).join('');
             },
+
             toggleSelection(i) {
                 const p = this.state.photos[i];
-                if(this.state.selected.has(p.id)) this.state.selected.delete(p.id);
-                else { if(this.state.selected.size>=this.state.MAX_SELECTION) return alert('Limit!'); this.state.selected.add(p.id); }
-                this.renderGrid(); this.updateCounter();
+                
+                if(this.state.selected.has(p.id)) {
+                    this.state.selected.delete(p.id);
+                } else {
+                    if(this.state.selected.size >= this.state.MAX_SELECTION) {
+                        return this.showToast('Osiągnięto limit wyboru!', 'warning');
+                    }
+                    this.state.selected.add(p.id);
+                }
+                
+                this.renderGrid();
+                this.updateCounter();
             },
-            updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
-            async saveSelection() { 
+
+            updateCounter() {
+                document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`;
+            },
+
+            async saveSelection() {
+                if(this.state.selected.size === 0) {
+                    return this.showToast('Wybierz przynajmniej jedno zdjęcie', 'warning');
+                }
+                
                 try {
                     const res = await fetch(API + '/select', { 
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ token: this.state.currentAlbumToken, photoIds: Array.from(this.state.selected) })
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            token: this.state.currentAlbumToken, 
+                            photoIds: Array.from(this.state.selected) 
+                        })
                     });
-                    if(res.ok) alert('Wybór zapisany! Fotograf został powiadomiony.');
-                } catch(e) { alert('Błąd zapisu'); }
-            },
-            setFilter(t) { 
-                this.state.viewFilter = t;
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById('filter-' + t).classList.add('active');
-                
-                const cards = document.querySelectorAll('.photo-card');
-                cards.forEach(c => {
-                    if(t === 'all') c.style.display = 'block';
-                    else {
-                        if(c.classList.contains('selected')) c.style.display = 'block';
-                        else c.style.display = 'none';
+                    
+                    if(res.ok) {
+                        this.showToast('✅ Wybór zapisany! Fotograf został powiadomiony.', 'success');
+                    } else {
+                        throw new Error('Błąd zapisu');
                     }
-                });
-            }, 
-            openLightbox(i) { 
+                } catch(e) { 
+                    this.showToast('Błąd zapisu wyboru', 'error'); 
+                }
+            },
+
+            setFilter(type) {
+                this.state.viewFilter = type;
+                
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('filter-' + type).classList.add('active');
+                
+                this.renderGrid();
+            },
+
+            openLightbox(i) {
                 this.state.currentPhotoIndex = i;
                 const lightbox = document.getElementById('lightbox');
                 const img = document.getElementById('lightbox-img');
                 const p = this.state.photos[i];
+                
                 img.src = p.proof_url;
                 lightbox.classList.add('active');
+                
                 this.updateLightboxBtn();
-            }, 
-            closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }, 
-            nextPhoto() { 
+                this.updateLightboxCounter();
+                
+                // Preload next images
+                if(i < this.state.photos.length - 1) {
+                    const nextImg = new Image();
+                    nextImg.src = this.state.photos[i + 1].proof_url;
+                }
+            },
+
+            closeLightbox() {
+                document.getElementById('lightbox').classList.remove('active');
+                if(document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+            },
+
+            nextPhoto() {
                 if(this.state.currentPhotoIndex < this.state.photos.length - 1) {
                     this.openLightbox(this.state.currentPhotoIndex + 1);
                 }
-            }, 
-            prevPhoto() { 
+            },
+
+            prevPhoto() {
                 if(this.state.currentPhotoIndex > 0) {
                     this.openLightbox(this.state.currentPhotoIndex - 1);
                 }
-            }, 
-            toggleSelectionFromLightbox() { 
+            },
+
+            toggleSelectionFromLightbox() {
                 this.toggleSelection(this.state.currentPhotoIndex);
                 this.updateLightboxBtn();
             },
+
             updateLightboxBtn() {
                 const btn = document.getElementById('lb-select-btn');
                 const p = this.state.photos[this.state.currentPhotoIndex];
+                
                 if(this.state.selected.has(p.id)) {
                     btn.classList.add('active');
                     btn.innerText = "Wybrano ❤";
@@ -465,8 +1002,82 @@
                     btn.classList.remove('active');
                     btn.innerText = "Wybierz zdjęcie";
                 }
+            },
+
+            updateLightboxCounter() {
+                document.getElementById('lb-current').innerText = this.state.currentPhotoIndex + 1;
+                document.getElementById('lb-total').innerText = this.state.photos.length;
+            },
+
+            toggleFullscreen() {
+                const lightbox = document.getElementById('lightbox');
+                
+                if (!document.fullscreenElement) {
+                    lightbox.requestFullscreen().catch(err => {
+                        this.showToast('Nie można włączyć trybu pełnoekranowego', 'error');
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            },
+
+            async lookupSessions() {
+                const email = document.getElementById('lookup-email').value;
+                const resultDiv = document.getElementById('sessions-result');
+                
+                resultDiv.innerHTML = '<p class="text-center text-muted">Szukam sesji...</p>';
+                
+                try {
+                    const res = await fetch(API + '/sessions/lookup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    
+                    if(!res.ok) throw new Error('Błąd wyszukiwania');
+                    
+                    const sessions = await res.json();
+                    
+                    if(sessions.length === 0) {
+                        resultDiv.innerHTML = `
+                            <div class="empty-state">
+                                <p>Nie znaleziono żadnych sesji dla tego adresu email.</p>
+                                <p class="text-muted mt-sm">Sprawdź poprawność adresu lub skontaktuj się z fotografem.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <h3 class="mb-md">Twoje Sesje (${sessions.length})</h3>
+                        <div class="sessions-list">
+                            ${sessions.map(s => `
+                                <div class="session-card">
+                                    <div class="session-info">
+                                        <h4>${s.title}</h4>
+                                        <p class="text-muted">
+                                            ${new Date(s.created_at).toLocaleDateString('pl-PL')} • 
+                                            ${s.photo_count} zdjęć • 
+                                            <span style="color: var(--color-accent)">${s.selection_count} wybranych</span>
+                                        </p>
+                                    </div>
+                                    <a href="/gallery/${s.access_token}" class="btn-primary">Otwórz Galerię</a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                } catch(err) {
+                    resultDiv.innerHTML = `
+                        <div class="empty-state">
+                            <p>Wystąpił błąd podczas wyszukiwania sesji.</p>
+                        </div>
+                    `;
+                }
             }
         };
+
+        // Initialize app
         app.init();
     </script>
 </body>
