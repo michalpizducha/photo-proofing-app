@@ -53,8 +53,8 @@
             <h2>Panel Fotografa</h2>
             <p class="text-muted mb-lg">Zaloguj się, aby zarządzać sesjami</p>
             <form id="login-form">
-                <input type="email" id="email" placeholder="Email" required value="admin@example.com" autocomplete="username">
-                <input type="password" id="password" placeholder="Hasło" required value="admin123" autocomplete="current-password">
+                <input type="email" id="email" placeholder="Email" required autocomplete="username">
+                <input type="password" id="password" placeholder="Hasło" required autocomplete="current-password">
                 <button type="submit" class="btn-primary">Zaloguj się</button>
             </form>
         </div>
@@ -1042,7 +1042,7 @@
                         resultDiv.innerHTML = `
                             <div class="empty-state">
                                 <p>Nie znaleziono żadnych sesji dla tego adresu email.</p>
-                                <p class="text-muted mt-sm">Sprawdź poprawność adresu lub skontaktuj się z fotografem.</p>
+                                <p class="text-muted mt-sm">Sprawdź poprawnść adresu lub skontaktuj się z fotografem.</p>
                             </div>
                         `;
                         return;
