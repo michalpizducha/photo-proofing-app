@@ -2,8 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { Storage } = require('@google-cloud/storage');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
@@ -16,29 +15,52 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const BrevoTransport = require('nodemailer-brevo-transport');
 
-// --- WALIDACJA ŚRODOWISKA (NAPRAWIONA LINIA) ---
-const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+// --- WALIDACJA ZMIENNYCH ---
+const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID'];
 requiredEnv.forEach(key => {
-    if (!process.env[key]) {
-        console.warn(`UWAGA: Brak zmiennej środowiskowej ${key}. Aplikacja może nie działać poprawnie.`);
-    }
+    if (!process.env[key]) console.warn(`⚠️ UWAGA: Brak zmiennej ${key}`);
 });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS_IN_PROD';
 
-// --- KONFIGURACJA BEZPIECZEŃSTWA (CSP & HEADERS) ---
+// --- KONFIGURACJA GOOGLE STORAGE (DLA RENDER & BASE64) ---
+let storage;
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+
+if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+    try {
+        // Dekodujemy klucz z Base64 (to co ustawiłaś w Renderze)
+        const credentials = JSON.parse(
+            Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString()
+        );
+        storage = new Storage({
+            projectId: process.env.GCS_PROJECT_ID,
+            credentials: credentials
+        });
+        console.log('✅ GCS: Zalogowano poprawnie (Render Base64)');
+    } catch (e) {
+        console.error('❌ Błąd klucza GCS:', e);
+    }
+} else {
+    // Fallback dla testów lokalnych (jeśli będziesz kiedyś potrzebować)
+    storage = new Storage({ projectId: process.env.GCS_PROJECT_ID });
+    console.log('ℹ️ GCS: Tryb domyślny');
+}
+
+const bucket = storage.bucket(BUCKET_NAME);
+
+// --- BEZPIECZEŃSTWO ---
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            // POPRAWKA CSP (wcześniejsza): Dodano "blob:"
             scriptSrc: ["'self'", "'unsafe-inline'", "blob:"], 
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-            // NOWA POPRAWKA CSP: Dodano Google Analytics do connect-src
+            // Zezwalamy na zdjęcia z Google Storage
+            imgSrc: ["'self'", "data:", "https://storage.googleapis.com"],
             connectSrc: ["'self'", "https://www.google-analytics.com"], 
             frameSrc: ["'none'"],
             objectSrc: ["'none'"]
@@ -47,31 +69,14 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
-// CORS i Cookies
-app.use(cors({
-    origin: process.env.APP_URL || 'http://localhost:3000', // W produkcji ustaw URL swojej aplikacji
-    credentials: true // Zezwala na przesyłanie ciasteczek
-}));
-
-app.use(express.json({ limit: '10kb' })); // Ochrona przed dużym payloadem JSON
+app.use(cors({ origin: process.env.APP_URL || 'http://localhost:3000', credentials: true }));
+app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- RATE LIMITING (Ochrona przed DDoS/Brute Force) ---
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minut
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: 'Zbyt wiele zapytań z tego IP.'
-});
-app.use('/api/', apiLimiter);
-
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 godzina
-    max: 15, // Max 15 prób logowania na godzinę
-    message: 'Zablokowano możliwość logowania na godzinę z powodu zbyt wielu prób.'
-});
+// --- LIMITY ---
+app.use('/api/', rateLimit({ windowMs: 15*60*1000, max: 200 })); // API limit
+const authLimiter = rateLimit({ windowMs: 60*60*1000, max: 15, message: 'Za dużo prób logowania.' });
 
 // --- BAZA DANYCH ---
 const pool = new Pool({
@@ -79,187 +84,58 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// --- CLOUDINARY ---
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// --- MULTER (Upload) ---
-// Ograniczenie pamięci RAM: Max 5 plików na raz, max 10MB plik.
+// --- UPLOAD (MULTER) ---
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024, files: 5 }
+    limits: { fileSize: 10 * 1024 * 1024, files: 5 } // Max 10MB
 });
 
 // --- EMAIL ---
-const transporter = nodemailer.createTransport(new BrevoTransport({
-    apiKey: process.env.BREVO_API_KEY || 'test'
-}));
+const transporter = nodemailer.createTransport(new BrevoTransport({ apiKey: process.env.BREVO_API_KEY || 'test' }));
 
-// --- MIDDLEWARE AUTORYZACJI (COOKIE) ---
+// --- MIDDLEWARE AUTH ---
 const authenticateToken = (req, res, next) => {
-    const token = req.cookies.auth_token; // Pobieramy z ciasteczka, nie z nagłówka
+    const token = req.cookies.auth_token;
     if (!token) return res.status(401).json({ error: 'Brak autoryzacji' });
-
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            res.clearCookie('auth_token');
-            return res.status(403).json({ error: 'Sesja wygasła' });
-        }
+        if (err) return res.status(403).clearCookie('auth_token').json({ error: 'Sesja wygasła' });
         req.user = user;
         next();
     });
 };
 
-// --- INIT DB ---
-const initDb = async () => {
-    const client = await pool.connect();
-    try {
-        await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-        
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
-            );
-        `);
-        
-        // Dodano indeks na access_token dla wydajności galerii
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS albums (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                title VARCHAR(200) NOT NULL,
-                client_name VARCHAR(100),
-                access_token VARCHAR(64) UNIQUE NOT NULL,
-                status VARCHAR(20) DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_albums_token ON albums(access_token);
-        `);
-        
-        // Dodano indeks na album_id
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS photos (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                album_id UUID REFERENCES albums(id) ON DELETE CASCADE,
-                proof_url TEXT NOT NULL,
-                storage_id VARCHAR(100),
-                filename VARCHAR(255),
-                created_at TIMESTAMP DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_photos_album ON photos(album_id);
-        `);
-        
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS selections (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                album_id UUID REFERENCES albums(id) ON DELETE CASCADE,
-                photo_id UUID REFERENCES photos(id) ON DELETE CASCADE,
-                UNIQUE(album_id, photo_id)
-            );
-        `);
-
-        // Check Admin
-        const userCheck = await client.query('SELECT * FROM users LIMIT 1');
-        if (userCheck.rows.length === 0) {
-            const initialPass = process.env.ADMIN_INITIAL_PASSWORD || 'admin123';
-            const hash = await bcrypt.hash(initialPass, 10);
-            await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            
-            // POPRAWKA BEZPIECZEŃSTWA: Usunięto logowanie hasła, dodano ostrzeżenie 
-            if (initialPass === 'admin123') {
-                console.warn('!!! UWAGA BEZPIECZEŃSTWA: Używasz domyślnego hasła "admin123". Ustaw silne ADMIN_INITIAL_PASSWORD w pliku .env!');
-            }
-            console.log('>>> ADMIN UTWORZONY. Dane: admin@example.com. Zmień hasło! (Hasło nie jest logowane do konsoli)');
-        }
-    } catch (err) {
-        console.error('Błąd Init DB:', err);
-    } finally {
-        client.release();
-    }
-};
-
-// --- API ---
-
-// 1. Logowanie (Set-Cookie)
+// --- API: LOGOWANIE ---
 app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Wymagane pola' });
-
     try {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (result.rows.length === 0) return res.status(401).json({ error: 'Błędne dane' });
-
+        
         const user = result.rows[0];
-        const validPassword = await bcrypt.compare(password, user.password_hash);
-        if (!validPassword) return res.status(401).json({ error: 'Błędne dane' });
+        if (!await bcrypt.compare(password, user.password_hash)) return res.status(401).json({ error: 'Błędne dane' });
 
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
-
-        // HTTP ONLY COOKIE - Kluczowe dla bezpieczeństwa
-        res.cookie('auth_token', token, {
-            httpOnly: true, // Niedostępne dla JS
-            secure: process.env.NODE_ENV === 'production', // Tylko HTTPS w produkcji
-            sameSite: 'strict',
-            maxAge: 24 * 3600 * 1000 // 24h
-        });
-
+        res.cookie('auth_token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 86400000 });
         res.json({ success: true, email: user.email });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('auth_token');
-    res.json({ success: true });
-});
+app.post('/api/auth/logout', (req, res) => { res.clearCookie('auth_token').json({ success: true }); });
+app.get('/api/auth/check', authenticateToken, (req, res) => { res.json({ authenticated: true, user: req.user.email }); });
 
-// Endpoint do sprawdzania stanu sesji przez frontend
-app.get('/api/auth/check', authenticateToken, (req, res) => {
-    res.json({ authenticated: true, user: req.user.email });
-});
-
+// --- API: ALBUMY ---
 app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT a.*, 
-            COUNT(DISTINCT p.id) as photo_count,
-            COUNT(DISTINCT s.id) as selection_count
-            FROM albums a
-            LEFT JOIN photos p ON a.id = p.album_id
-            LEFT JOIN selections s ON a.id = s.album_id
-            WHERE a.user_id = $1
-            GROUP BY a.id ORDER BY created_at DESC
+            SELECT a.*, COUNT(DISTINCT p.id) as photo_count, COUNT(DISTINCT s.id) as selection_count
+            FROM albums a LEFT JOIN photos p ON a.id = p.album_id LEFT JOIN selections s ON a.id = s.album_id
+            WHERE a.user_id = $1 GROUP BY a.id ORDER BY created_at DESC
         `, [req.user.id]);
         res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query(`
-            SELECT p.filename 
-            FROM photos p
-            JOIN selections s ON p.id = s.photo_id
-            WHERE p.album_id = $1
-        `, [id]);
-        res.json({ filenames: result.rows.map(r => r.filename) });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/albums', authenticateToken, async (req, res) => {
-    // UWAGA: Wymagana dodatkowa sanitarazacja (czyszczenie) title i clientName, aby zapobiec XSS
     const { title, clientName } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
     try {
@@ -267,152 +143,117 @@ app.post('/api/albums', authenticateToken, async (req, res) => {
             'INSERT INTO albums (user_id, title, client_name, access_token) VALUES ($1, $2, $3, $4) RETURNING *',
             [req.user.id, title, clientName, token]
         );
-        res.json(result.rows[0]); // Zwracamy obiekt, nie tablicę
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/albums/:id', authenticateToken, async (req, res) => {
-    const { id } = req.params;
     try {
-        const checkOwner = await pool.query('SELECT * FROM albums WHERE id = $1 AND user_id = $2', [id, req.user.id]);
-        if (checkOwner.rows.length === 0) return res.status(403).json({ error: 'Brak uprawnień' });
-        await pool.query('DELETE FROM albums WHERE id = $1', [id]);
+        const check = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+        if (check.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
+        await pool.query('DELETE FROM albums WHERE id=$1', [req.params.id]);
         res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ZMODYFIKOWANY UPLOAD (Oszczędność Pamięci)
+// --- API: UPLOAD (GOOGLE STORAGE) ---
 app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req, res) => {
     const { albumId } = req.body;
-    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Brak plików' });
+    if (!req.files?.length) return res.status(400).json({ error: 'Brak plików' });
 
     try {
-        const albumCheck = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [albumId, req.user.id]);
-        if (albumCheck.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
+        const check = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [albumId, req.user.id]);
+        if (check.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
 
         const results = [];
-        
-        // Przetwarzanie sekwencyjne dla ochrony RAM
         for (const file of req.files) {
             try {
-                // Resize i kompresja (mozjpeg)
-                const finalBuffer = await sharp(file.buffer)
-                    .rotate()
-                    .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true }) 
-                    .jpeg({ quality: 80, mozjpeg: true }) 
-                    .toBuffer();
+                // 1. Sharp (Kompresja)
+                const buffer = await sharp(file.buffer)
+                    .rotate().resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
+                    .jpeg({ quality: 80, mozjpeg: true }).toBuffer();
 
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const stream = cloudinary.uploader.upload_stream(
-                        { folder: `proofing/${albumId}` },
-                        (error, result) => {
-                            if (error) reject(error);
-                            else resolve(result);
-                        }
-                    );
-                    streamifier.createReadStream(finalBuffer).pipe(stream);
-                });
+                // 2. Upload do GCS
+                const ext = path.extname(file.originalname).toLowerCase();
+                const filename = `albums/${albumId}/${uuidv4()}${ext}`;
+                const blob = bucket.file(filename);
+                
+                await blob.save(buffer, { contentType: file.mimetype, resumable: false });
 
+                // 3. Link publiczny
+                const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
+
+                // 4. Baza
                 const dbRes = await pool.query(
                     'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
-                    [albumId, uploadResult.secure_url, uploadResult.public_id, file.originalname]
+                    [albumId, publicUrl, filename, file.originalname]
                 );
                 results.push(dbRes.rows[0]);
-            } catch (innerErr) {
-                console.error("Błąd pliku:", file.originalname, innerErr);
-            }
+            } catch (e) { console.error("Błąd pliku:", e); }
         }
         res.json({ uploadedCount: results.length });
-    } catch (err) {
-        console.error('Upload Error:', err);
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- API: GALERIA KLIENTA ---
 app.get('/api/gallery/:token', async (req, res) => {
     try {
-        const albumRes = await pool.query('SELECT id, title, client_name, status FROM albums WHERE access_token = $1', [req.params.token]);
-        if (albumRes.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
-        const album = albumRes.rows;
-        const photosRes = await pool.query('SELECT id, proof_url, filename FROM photos WHERE album_id = $1 ORDER BY filename', [album[0].id]);
-        const selectionsRes = await pool.query('SELECT photo_id FROM selections WHERE album_id = $1', [album[0].id]);
+        const alb = await pool.query('SELECT * FROM albums WHERE access_token=$1', [req.params.token]);
+        if (alb.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
         
-        res.json({ album, photos: photosRes.rows, selections: selectionsRes.rows.map(r => r.photo_id) });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const photos = await pool.query('SELECT id, proof_url, filename FROM photos WHERE album_id=$1 ORDER BY filename', [alb.rows[0].id]);
+        const sels = await pool.query('SELECT photo_id FROM selections WHERE album_id=$1', [alb.rows[0].id]);
+        
+        res.json({ album: alb.rows, photos: photos.rows, selections: sels.rows.map(s => s.photo_id) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/select', async (req, res) => {
     const { token, photoIds } = req.body;
     const client = await pool.connect();
     try {
-        const albumCheck = await client.query('SELECT a.id, a.title, a.client_name FROM albums a WHERE access_token = $1', [token]);
-        if (albumCheck.rows.length === 0) throw new Error('Błędny token');
-        
-        const album = albumCheck.rows[0];
+        const alb = await client.query('SELECT id, title, client_name FROM albums WHERE access_token=$1', [token]);
+        if (alb.rows.length === 0) throw new Error('Błędny token');
         
         await client.query('BEGIN');
-        await client.query('DELETE FROM selections WHERE album_id = $1', [album.id]);
-        
-        // UWAGA: Należy sprawdzić, czy photoIds zawiera ID faktycznie istniejące w danym albumie, 
-        // aby zapobiec potencjalnemu atakowi SQL Injection / nieprawidłowym danym.
+        await client.query('DELETE FROM selections WHERE album_id=$1', [alb.rows[0].id]);
         for (const pid of photoIds) {
-            await client.query('INSERT INTO selections (album_id, photo_id) VALUES ($1, $2)', [album.id, pid]);
+            await client.query('INSERT INTO selections (album_id, photo_id) VALUES ($1, $2)', [alb.rows[0].id, pid]);
         }
         await client.query('COMMIT');
 
-        // Powiadomienie mailowe
+        // Powiadomienie
         if (process.env.EMAIL_USER) {
-             transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_USER, 
-                subject: `📸 Klient ${album.client_name} zakończył wybór!`,
-                text: `Klient w albumie "${album.title}" wybrał ${photoIds.length} zdjęć.`
-            }).catch(e => console.error("Mail error:", e));
+            transporter.sendMail({
+                from: process.env.EMAIL_USER, to: process.env.EMAIL_USER,
+                subject: `📸 Wybór zakończony: ${alb.rows[0].client_name}`,
+                text: `Klient wybrał ${photoIds.length} zdjęć w albumie "${alb.rows[0].title}".`
+            }).catch(console.error);
         }
-
         res.json({ success: true });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
-    } finally {
-        client.release();
-    }
+    } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } 
+    finally { client.release(); }
 });
 
-app.post('/api/send-link', authenticateToken, async (req, res) => {
-    // UWAGA: Wymagana sanitarazacja link i clientEmail.
-    const { clientEmail, albumTitle, link } = req.body;
-    if(!clientEmail) return res.status(400).json({ error: 'Brak maila' });
-
+// --- INIT DB & START ---
+const initDb = async () => {
+    const client = await pool.connect();
     try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: clientEmail,
-            subject: `Twoja galeria zdjęć: ${albumTitle}`,
-            html: `
-                <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                    <h2>Dzień dobry!</h2>
-                    <p>Twoja galeria zdjęć z sesji <strong>${albumTitle}</strong> jest już gotowa.</p>
-                    <a href="${link}" style="background: #c5a059; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Otwórz Galerię</a>
-                </div>
-            `
-        });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: 'Błąd: ' + err.message });
-    }
-});
+        await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+        await client.query(`CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255))`);
+        await client.query(`CREATE TABLE IF NOT EXISTS albums (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id), title VARCHAR(200), client_name VARCHAR(100), access_token VARCHAR(64) UNIQUE, created_at TIMESTAMP DEFAULT NOW())`);
+        await client.query(`CREATE TABLE IF NOT EXISTS photos (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), album_id UUID REFERENCES albums(id) ON DELETE CASCADE, proof_url TEXT, storage_id VARCHAR(100), filename VARCHAR(255))`);
+        await client.query(`CREATE TABLE IF NOT EXISTS selections (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), album_id UUID REFERENCES albums(id) ON DELETE CASCADE, photo_id UUID REFERENCES photos(id) ON DELETE CASCADE, UNIQUE(album_id, photo_id))`);
+        
+        const admin = await client.query('SELECT * FROM users LIMIT 1');
+        if (admin.rows.length === 0) {
+            const hash = await bcrypt.hash('admin123', 10);
+            await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
+            console.log('>>> ADMIN UTWORZONY: admin@example.com / admin123');
+        }
+    } catch (e) { console.error(e); } finally { client.release(); }
+};
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
-initDb().then(() => {
-    app.listen(PORT, '0.0.0.0', () => console.log(`Serwer Secure Photo Proofing działa na porcie ${PORT}`));
-});
+initDb().then(() => app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`)));
