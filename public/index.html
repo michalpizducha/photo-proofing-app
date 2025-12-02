@@ -97,335 +97,343 @@
     </div>
 
     <script>
-        const API = '/api';
+<script>
+    const API = '/api';
 
-        const router = {
-            views: ['login', 'dashboard', 'upload', 'gallery'],
-            go(viewId) {
-                this.views.forEach(v => {
-                    const el = document.getElementById('view-' + v);
-                    if(el) el.classList.add('hidden');
-                });
-                const active = document.getElementById('view-' + viewId);
-                if(active) active.classList.remove('hidden');
-                if(viewId === 'gallery') document.querySelector('.brand-title').style.display = 'block';
+    const router = {
+        views: ['login', 'dashboard', 'upload', 'gallery'],
+        go(viewId) {
+            this.views.forEach(v => {
+                const el = document.getElementById('view-' + v);
+                if(el) el.classList.add('hidden');
+            });
+            const active = document.getElementById('view-' + viewId);
+            if(active) active.classList.remove('hidden');
+            // Zezwolenie na inline styles i scripts w index.html wymusiło użycie 'unsafe-inline' w CSP (server.js).
+            if(viewId === 'gallery') document.querySelector('.brand-title').style.display = 'block';
+        }
+    };
+
+    const app = {
+        state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
+
+        async init() {
+            // Obsługa klawiszy Lightboxa
+            document.addEventListener('keydown', (e) => {
+                // To wywołuje błąd CSP "Refused to execute inline event handler..."
+                // Zostało to naprawione w server.js przez dodanie 'unsafe-inline' do CSP.
+                if (!document.getElementById('lightbox').classList.contains('active')) return;
+                if (e.key === 'ArrowLeft') this.prevPhoto();
+                if (e.key === 'ArrowRight') this.nextPhoto();
+                if (e.key === 'Escape') this.closeLightbox();
+                if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
+            });
+
+            // ROUTING
+            const path = window.location.pathname;
+            if (path.startsWith('/gallery/')) {
+                const token = path.split('/')[2];
+                if(token) this.loadGallery(token);
+            } else {
+                // SPRAWDZANIE SESJI (AUTORYZACJA) - Wymaga credentials: 'include'
+                try {
+                    // Jeśli ciasteczko istnieje, serwer odpowie 200, jeśli nie, 401.
+                    const res = await fetch(API + '/auth/check', { credentials: 'include' }); 
+                    if(res.ok) this.loadDashboard();
+                    else router.go('login');
+                } catch(e) { router.go('login'); }
             }
-        };
+        },
 
-        const app = {
-            state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
+        showToast(message, type = 'success') {
+            const toast = document.getElementById('toast-container');
+            const text = document.getElementById('toast-text');
+            text.innerText = message;
+            toast.classList.add('active');
+            setTimeout(() => { toast.classList.remove('active'); }, 3500);
+        },
 
-            async init() {
-                // Obsługa klawiszy Lightboxa
-                document.addEventListener('keydown', (e) => {
-                    if (!document.getElementById('lightbox').classList.contains('active')) return;
-                    if (e.key === 'ArrowLeft') this.prevPhoto();
-                    if (e.key === 'ArrowRight') this.nextPhoto();
-                    if (e.key === 'Escape') this.closeLightbox();
+        async login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                const res = await fetch(API + '/auth/login', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ email, password }),
+                    credentials: 'include' // KLUCZOWE: Włącza przesyłanie i odbiór ciasteczek
                 });
-
-                // ROUTING
-                const path = window.location.pathname;
-                if (path.startsWith('/gallery/')) {
-                    const token = path.split('/')[2];
-                    if(token) this.loadGallery(token);
-                } else {
-                    // Sprawdzamy sesję przez HTTP-only cookie
-                    try {
-                        const res = await fetch(API + '/auth/check', { credentials: 'include' });
-                        if(res.ok) this.loadDashboard();
-                        else router.go('login');
-                    } catch(e) { router.go('login'); }
-                }
-            },
-
-            showToast(message, type = 'success') {
-                const toast = document.getElementById('toast-container');
-                const text = document.getElementById('toast-text');
-                text.innerText = message;
-                toast.classList.add('active');
-                setTimeout(() => { toast.classList.remove('active'); }, 3500);
-            },
-
-            async login() {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                try {
-                    const res = await fetch(API + '/auth/login', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ email, password }),
-                        credentials: 'include' // WAŻNE: Włącza obsługę ciasteczek
-                    });
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error);
-                    
-                    this.loadDashboard();
-                } catch (err) { alert(err.message); }
-            },
-
-            async logout() { 
-                await fetch(API + '/auth/logout', { method: 'POST' });
-                router.go('login'); 
-            },
-
-            async loadDashboard() {
-                router.go('dashboard');
-                try {
-                    const res = await fetch(API + '/admin/albums', { credentials: 'include' });
-                    const albums = await res.json();
-                    const container = document.getElementById('albums-list');
-                    
-                    if(albums.length === 0) {
-                        container.innerHTML = '<p style="text-align:center; color:#888;">Brak albumów.</p>';
-                        return;
-                    }
-
-                    container.innerHTML = albums.map(a => `
-                        <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
-                            <div>
-                                <h3 style="margin-bottom:5px;">${a.title}</h3>
-                                <p style="color:#666; font-size:0.9rem;">${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
-                            </div>
-                            <div style="display:flex; gap:10px; margin-top:10px;">
-                                <button onclick="app.copyFilenames('${a.id}')" class="btn-copy" style="font-size:11px;">Kopiuj listę</button>
-                                <a href="/gallery/${a.access_token}" target="_blank"><button style="font-size:11px;">Podgląd</button></a>
-                                <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="font-size:11px;">Usuń</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } catch (err) { console.error(err); }
-            },
-
-            async copyFilenames(albumId) {
-                try {
-                    const res = await fetch(API + '/admin/albums/' + albumId + '/files', { credentials: 'include' });
-                    const data = await res.json();
-                    if(data.filenames?.length > 0) {
-                        navigator.clipboard.writeText(data.filenames.join(', '));
-                        this.showToast('Skopiowano listę plików!', 'success');
-                    } else {
-                        this.showToast('Brak wybranych zdjęć.', 'error');
-                    }
-                } catch (err) { this.showToast('Błąd kopiowania.', 'error'); }
-            },
-
-            async deleteAlbum(id) {
-                if(!confirm('Czy na pewno chcesz usunąć ten album?')) return;
-                try {
-                    const res = await fetch(API + '/albums/' + id, { method: 'DELETE', credentials: 'include' });
-                    if(res.ok) { this.showToast('Album usunięty.', 'success'); this.loadDashboard(); }
-                    else { throw new Error('Błąd usuwania'); }
-                } catch (err) { this.showToast('Błąd: ' + err.message, 'error'); }
-            },
-
-            // --- NOWA LOGIKA BATCH UPLOAD ---
-            async createAlbum() {
-                const btn = document.getElementById('uploadBtn');
-                const statusDiv = document.getElementById('upload-status');
-                const title = document.getElementById('albumTitle').value;
-                const clientName = document.getElementById('clientName').value;
-                const clientEmail = document.getElementById('clientEmailUpload').value;
-                const filesInput = document.getElementById('files');
-                const files = Array.from(filesInput.files);
-
-                if(files.length === 0) return this.showToast('Wybierz zdjęcia', 'error');
-
-                btn.disabled = true; btn.innerText = "Przetwarzanie...";
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
                 
-                try {
-                    // 1. Tworzenie Albumu
-                    const res1 = await fetch(API + '/albums', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ title, clientName }),
-                        credentials: 'include'
-                    });
-                    
-                    if(!res1.ok) throw new Error('Błąd tworzenia albumu');
-                    const albumData = await res1.json();
-                    const albumId = albumData.id;
-                    const accessToken = albumData.access_token;
+                this.loadDashboard();
+            } catch (err) { alert(err.message); }
+        },
 
-                    // 2. Batch Upload (partie po 3 zdjęcia)
-                    const BATCH_SIZE = 3;
-                    let uploaded = 0;
+        async logout() { 
+            await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' });
+            router.go('login'); 
+        },
 
-                    for (let i = 0; i < files.length; i += BATCH_SIZE) {
-                        const chunk = files.slice(i, i + BATCH_SIZE);
-                        const formData = new FormData();
-                        formData.append('albumId', albumId);
-                        chunk.forEach(f => formData.append('photos', f));
-
-                        // Pasek postępu
-                        const progress = Math.round((uploaded / files.length) * 100);
-                        statusDiv.innerHTML = `
-                            <div style="margin-top:10px;">
-                                Wysyłanie: ${uploaded}/${files.length} (${progress}%)
-                                <div style="width:100%; height:10px; background:#eee; margin-top:5px;">
-                                    <div style="width:${progress}%; height:100%; background:var(--accent); transition:width 0.3s;"></div>
-                                </div>
-                            </div>`;
-
-                        const resUpload = await fetch(API + '/upload', { 
-                            method: 'POST', 
-                            body: formData,
-                            credentials: 'include'
-                        });
-
-                        if(!resUpload.ok) throw new Error('Błąd wysyłania partii zdjęć');
-                        uploaded += chunk.length;
-                    }
-
-                    // 3. Koniec
-                    statusDiv.innerHTML = "Wysyłanie zakończone sukcesem!";
-                    
-                    if (clientEmail) {
-                        statusDiv.innerText += " Wysyłanie maila...";
-                        const link = window.location.origin + '/gallery/' + accessToken;
-                        await fetch(API + '/send-link', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ clientEmail, albumTitle: title, link }),
-                            credentials: 'include'
-                        });
-                        this.showToast('Wysłano do klienta!', 'success');
-                    } else { 
-                        this.showToast('Gotowe!', 'success'); 
-                    }
-                    setTimeout(() => this.loadDashboard(), 1000);
-
-                } catch (err) { 
-                    statusDiv.innerText = "Błąd: " + err.message;
-                    this.showToast('Błąd uploadu', 'error'); 
-                } finally { 
-                    btn.disabled = false; btn.innerText = "Rozpocznij Upload"; 
-                }
-            },
-
-            async loadGallery(token) {
-                this.state.currentAlbumToken = token;
-                router.go('gallery');
-                const grid = document.getElementById('grid');
-                grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join('');
-
-                try {
-                    const res = await fetch(API + '/gallery/' + token);
-                    if(!res.ok) throw new Error('Błąd');
-                    const data = await res.json();
-                    
-                    document.getElementById('gallery-title').innerText = data.album[0].title;
-                    this.state.selected = new Set(data.selections);
-                    this.state.photos = data.photos;
-                    this.renderGrid();
-                    this.updateCounter();
-
-                    if(!localStorage.getItem('visited_' + token)) {
-                        this.showToast('Witaj! Wybierz zdjęcia klikając serce.', 'success');
-                        localStorage.setItem('visited_' + token, 'true');
-                    }
-                } catch (err) { 
-                    document.getElementById('view-gallery').innerHTML = "<div class='container' style='text-align:center; padding:100px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; 
-                }
-            },
-
-            setFilter(type) {
-                this.state.viewFilter = type;
-                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-                event.target.classList.add('active');
-                this.renderGrid();
-            },
-
-            renderGrid() {
-                const grid = document.getElementById('grid');
-                let photosToShow = this.state.photos;
-
-                if (this.state.viewFilter === 'selected') {
-                    photosToShow = this.state.photos.filter(p => this.state.selected.has(p.id));
-                }
-
-                if (photosToShow.length === 0) {
-                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć do wyświetlenia.</p>';
+        async loadDashboard() {
+            router.go('dashboard');
+            try {
+                const res = await fetch(API + '/admin/albums', { credentials: 'include' });
+                const albums = await res.json();
+                const container = document.getElementById('albums-list');
+                
+                if(albums.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#888;">Brak albumów.</p>';
                     return;
                 }
 
-                grid.innerHTML = photosToShow.map((p) => {
-                    const originalIndex = this.state.photos.findIndex(photo => photo.id === p.id);
-                    const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
-                    
-                    return `
-                    <div class="photo-card ${isSelected}" onclick="app.openLightbox(${originalIndex})">
-                        <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${originalIndex})">
-                            ${isSelected ? '❤' : '♡'}
+                container.innerHTML = albums.map(a => `
+                    <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+                        <div>
+                            <h3 style="margin-bottom:5px;">${a.title}</h3>
+                            <p style="color:#666; font-size:0.9rem;">${a.client_name} • ${a.photo_count || 0} zdjęć • Wybrano: <strong>${a.selection_count || 0}</strong></p>
                         </div>
-                        <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie" onerror="this.src='placeholder.jpg'">
-                    </div>`;
-                }).join('');
-            },
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button onclick="app.copyFilenames('${a.id}')" class="btn-copy" style="font-size:11px;">Kopiuj listę</button>
+                            <a href="/gallery/${a.access_token}" target="_blank"><button style="font-size:11px;">Podgląd</button></a>
+                            <button onclick="app.deleteAlbum('${a.id}')" class="btn-danger" style="font-size:11px;">Usuń</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error(err); }
+        },
 
-            toggleSelection(index) {
-                const p = this.state.photos[index];
-                if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
-                else {
-                    this.state.selected.add(p.id);
-                    if(navigator.vibrate) navigator.vibrate(50);
+        async copyFilenames(albumId) {
+            try {
+                const res = await fetch(API + '/admin/albums/' + albumId + '/files', { credentials: 'include' });
+                const data = await res.json();
+                if(data.filenames?.length > 0) {
+                    navigator.clipboard.writeText(data.filenames.join(', '));
+                    this.showToast('Skopiowano listę plików!', 'success');
+                } else {
+                    this.showToast('Brak wybranych zdjęć.', 'error');
                 }
-                this.renderGrid(); 
-                this.updateCounter();
-            },
+            } catch (err) { this.showToast('Błąd kopiowania.', 'error'); }
+        },
 
-            openLightbox(index) {
-                this.state.currentPhotoIndex = index;
-                const p = this.state.photos[index];
-                document.getElementById('lightbox-img').src = p.proof_url;
-                document.getElementById('lightbox').classList.add('active');
-                this.updateLightboxUI();
-            },
-            closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
+        async deleteAlbum(id) {
+            if(!confirm('Czy na pewno chcesz usunąć ten album?')) return;
+            try {
+                const res = await fetch(API + '/albums/' + id, { method: 'DELETE', credentials: 'include' });
+                if(res.ok) { this.showToast('Album usunięty.', 'success'); this.loadDashboard(); }
+                else { throw new Error('Błąd usuwania'); }
+            } catch (err) { this.showToast('Błąd: ' + err.message, 'error'); }
+        },
+
+        // --- LOGIKA BATCH UPLOAD (Zapisano z credentials: 'include') ---
+        async createAlbum() {
+            const btn = document.getElementById('uploadBtn');
+            const statusDiv = document.getElementById('upload-status');
+            const title = document.getElementById('albumTitle').value;
+            const clientName = document.getElementById('clientName').value;
+            const clientEmail = document.getElementById('clientEmailUpload').value;
+            const filesInput = document.getElementById('files');
+            const files = Array.from(filesInput.files);
+
+            if(files.length === 0) return this.showToast('Wybierz zdjęcia', 'error');
+
+            btn.disabled = true; btn.innerText = "Przetwarzanie...";
             
-            nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); },
-            prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); },
+            try {
+                // 1. Tworzenie Albumu
+                const res1 = await fetch(API + '/albums', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ title, clientName }),
+                    credentials: 'include' // Dodano
+                });
+                
+                if(!res1.ok) throw new Error('Błąd tworzenia albumu');
+                const albumData = await res1.json();
+                const albumId = albumData.id;
+                const accessToken = albumData.access_token;
 
-            toggleSelectionFromLightbox() {
-                const p = this.state.photos[this.state.currentPhotoIndex];
-                if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
-                else this.state.selected.add(p.id);
-                this.updateLightboxUI();
+                // 2. Batch Upload (partie po 3 zdjęcia)
+                const BATCH_SIZE = 3;
+                let uploaded = 0;
+
+                for (let i = 0; i < files.length; i += BATCH_SIZE) {
+                    const chunk = files.slice(i, i + BATCH_SIZE);
+                    const formData = new FormData();
+                    formData.append('albumId', albumId);
+                    chunk.forEach(f => formData.append('photos', f));
+
+                    // Pasek postępu
+                    const progress = Math.round((uploaded / files.length) * 100);
+                    statusDiv.innerHTML = `
+                        <div style="margin-top:10px;">
+                            Wysyłanie: ${uploaded}/${files.length} (${progress}%)
+                            <div style="width:100%; height:10px; background:#eee; margin-top:5px;">
+                                <div style="width:${progress}%; height:100%; background:var(--accent); transition:width 0.3s;"></div>
+                            </div>
+                        </div>`;
+
+                    const resUpload = await fetch(API + '/upload', { 
+                        method: 'POST', 
+                        body: formData,
+                        credentials: 'include' // Dodano
+                    });
+
+                    if(!resUpload.ok) throw new Error('Błąd wysyłania partii zdjęć');
+                    uploaded += chunk.length;
+                }
+
+                // 3. Koniec
+                statusDiv.innerHTML = "Wysyłanie zakończone sukcesem!";
+                
+                if (clientEmail) {
+                    statusDiv.innerText += " Wysyłanie maila...";
+                    const link = window.location.origin + '/gallery/' + accessToken;
+                    await fetch(API + '/send-link', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ clientEmail, albumTitle: title, link }),
+                        credentials: 'include' // Dodano
+                    });
+                    this.showToast('Wysłano do klienta!', 'success');
+                } else { 
+                    this.showToast('Gotowe!', 'success'); 
+                }
+                setTimeout(() => this.loadDashboard(), 1000);
+
+            } catch (err) { 
+                statusDiv.innerText = "Błąd: " + err.message;
+                this.showToast('Błąd uploadu', 'error'); 
+            } finally { 
+                btn.disabled = false; btn.innerText = "Rozpocznij Upload"; 
+            }
+        },
+
+        async loadGallery(token) {
+            this.state.currentAlbumToken = token;
+            router.go('gallery');
+            const grid = document.getElementById('grid');
+            grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join('');
+
+            try {
+                // Zapytanie publiczne, nie wymaga credentials: 'include'
+                const res = await fetch(API + '/gallery/' + token); 
+                if(!res.ok) throw new Error('Błąd');
+                const data = await res.json();
+                
+                document.getElementById('gallery-title').innerText = data.album[0].title;
+                this.state.selected = new Set(data.selections);
+                this.state.photos = data.photos;
                 this.renderGrid();
                 this.updateCounter();
-            },
 
-            updateLightboxUI() {
-                const p = this.state.photos[this.state.currentPhotoIndex];
-                const btn = document.getElementById('lb-select-btn');
-                if (this.state.selected.has(p.id)) {
-                    btn.classList.add('active');
-                    btn.innerText = "❤ WYBRANE";
-                } else {
-                    btn.classList.remove('active');
-                    btn.innerText = "Wybierz zdjęcie";
+                if(!localStorage.getItem('visited_' + token)) {
+                    this.showToast('Witaj! Wybierz zdjęcia klikając serce.', 'success');
+                    localStorage.setItem('visited_' + token, 'true');
                 }
-            },
-
-            updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
-
-            async saveSelection() {
-                const btn = document.getElementById('saveBtn');
-                btn.innerText = "Wysyłanie..."; btn.disabled = true;
-                const token = this.state.currentAlbumToken;
-                try {
-                    await fetch(API + '/select', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) 
-                    });
-                    this.showToast('Wybór zapisany i wysłany!', 'success');
-                } catch (err) { this.showToast('Błąd zapisu.', 'error'); } 
-                finally { btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; }
+            } catch (err) { 
+                document.getElementById('view-gallery').innerHTML = "<div class='container' style='text-align:center; padding:100px;'><h1>404</h1><p>Nie znaleziono galerii.</p></div>"; 
             }
-        };
+        },
 
-        app.init();
+        setFilter(type) {
+            this.state.viewFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            this.renderGrid();
+        },
+
+        renderGrid() {
+            const grid = document.getElementById('grid');
+            let photosToShow = this.state.photos;
+
+            if (this.state.viewFilter === 'selected') {
+                photosToShow = this.state.photos.filter(p => this.state.selected.has(p.id));
+            }
+
+            if (photosToShow.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć do wyświetlenia.</p>';
+                return;
+            }
+
+            grid.innerHTML = photosToShow.map((p) => {
+                const originalIndex = this.state.photos.findIndex(photo => photo.id === p.id);
+                const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
+                
+                return `
+                <div class="photo-card ${isSelected}" onclick="app.openLightbox(${originalIndex})">
+                    <div class="heart-icon" onclick="event.stopPropagation(); app.toggleSelection(${originalIndex})">
+                        ${isSelected ? '❤' : '♡'}
+                    </div>
+                    <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie" onerror="this.src='placeholder.jpg'">
+                </div>`;
+            }).join('');
+        },
+
+        toggleSelection(index) {
+            const p = this.state.photos[index];
+            if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
+            else {
+                this.state.selected.add(p.id);
+                if(navigator.vibrate) navigator.vibrate(50);
+            }
+            this.renderGrid(); 
+            this.updateCounter();
+        },
+
+        openLightbox(index) {
+            this.state.currentPhotoIndex = index;
+            const p = this.state.photos[index];
+            document.getElementById('lightbox-img').src = p.proof_url;
+            document.getElementById('lightbox').classList.add('active');
+            this.updateLightboxUI();
+        },
+        closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
+        
+        nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); },
+        prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); },
+
+        toggleSelectionFromLightbox() {
+            const p = this.state.photos[this.state.currentPhotoIndex];
+            if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
+            else this.state.selected.add(p.id);
+            this.updateLightboxUI();
+            this.renderGrid();
+            this.updateCounter();
+        },
+
+        updateLightboxUI() {
+            const p = this.state.photos[this.state.currentPhotoIndex];
+            const btn = document.getElementById('lb-select-btn');
+            if (this.state.selected.has(p.id)) {
+                btn.classList.add('active');
+                btn.innerText = "❤ WYBRANE";
+            } else {
+                btn.classList.remove('active');
+                btn.innerText = "Wybierz zdjęcie";
+            }
+        },
+
+        updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
+
+        async saveSelection() {
+            const btn = document.getElementById('saveBtn');
+            btn.innerText = "Wysyłanie..."; btn.disabled = true;
+            const token = this.state.currentAlbumToken;
+            try {
+                // Zapytanie publiczne, nie wymaga credentials: 'include'
+                await fetch(API + '/select', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ token: token, photoIds: Array.from(this.state.selected) }) 
+                });
+                this.showToast('Wybór zapisany i wysłany!', 'success');
+            } catch (err) { this.showToast('Błąd zapisu.', 'error'); } 
+            finally { btn.innerText = "Zatwierdź Wybór"; btn.disabled = false; }
+        }
+    };
+
+    app.init();
     </script>
 </body>
 </html>
