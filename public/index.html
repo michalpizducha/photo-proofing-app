@@ -32,8 +32,8 @@
             <h2>Panel Fotografa</h2>
             <p style="color:#888; margin-bottom:20px;">Zaloguj się, aby zarządzać sesjami</p>
             <form id="login-form">
-                <input type="email" id="email" placeholder="Email" required value="admin@example.com">
-                <input type="password" id="password" placeholder="Hasło" required value="admin123">
+                <input type="email" id="email" placeholder="Email" required value="admin@example.com" autocomplete="username">
+                <input type="password" id="password" placeholder="Hasło" required value="admin123" autocomplete="current-password">
                 <button type="submit" style="width:100%">Wejdź</button>
             </form>
         </div>
@@ -55,15 +55,17 @@
         <div class="card" style="max-width:800px;">
             <h2>Utwórz Sesję</h2>
             <form id="upload-form">
-                <label>Nazwa Sesji</label>
+                <label for="albumTitle">Nazwa Sesji</label>
                 <input type="text" id="albumTitle" placeholder="np. Ślub Ani" required>
-                <label>Klient</label>
+                
+                <label for="clientName">Klient</label>
                 <input type="text" id="clientName" placeholder="Imię i Nazwisko" required>
-                <label>Email (Opcjonalnie)</label>
+                
+                <label for="clientEmailUpload">Email (Opcjonalnie)</label>
                 <input type="email" id="clientEmailUpload" placeholder="Jeśli podasz, wyślemy link">
                 
                 <div style="border:2px dashed #ddd; padding:30px; margin:20px 0;">
-                    <p>Wybierz pliki JPG (System automatycznie podzieli upload)</p>
+                    <label for="files" style="display:block; margin-bottom:10px;">Wybierz pliki JPG (System automatycznie podzieli upload)</label>
                     <input type="file" id="files" multiple accept="image/jpeg" required>
                 </div>
                 <button type="submit" id="uploadBtn" style="width:100%">Rozpocznij Upload</button>
@@ -113,7 +115,8 @@
         };
 
         const app = {
-            state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all' },
+            // POPRAWKA UX: Dodano MAX_SELECTION
+            state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all', MAX_SELECTION: 50 },
 
             async init() {
                 // PRZENIESIONA OBSŁUGA ZDARZEŃ (Eliminacja błędów CSP)
@@ -416,6 +419,12 @@
                 const p = this.state.photos[index];
                 if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
                 else {
+                    // POPRAWKA UX: Sprawdzenie limitu wybranych zdjęć
+                    if(this.state.selected.size >= this.state.MAX_SELECTION) {
+                        this.showToast(`Możesz wybrać maksymalnie ${this.state.MAX_SELECTION} zdjęć.`, 'error');
+                        return;
+                    }
+                    
                     this.state.selected.add(p.id);
                     if(navigator.vibrate) navigator.vibrate(50);
                 }
@@ -438,7 +447,14 @@
             toggleSelectionFromLightbox() {
                 const p = this.state.photos[this.state.currentPhotoIndex];
                 if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
-                else this.state.selected.add(p.id);
+                else {
+                    // POPRAWKA UX: Sprawdzenie limitu wybranych zdjęć w lightboxie
+                    if(this.state.selected.size >= this.state.MAX_SELECTION) {
+                        this.showToast(`Możesz wybrać maksymalnie ${this.state.MAX_SELECTION} zdjęć.`, 'error');
+                        return;
+                    }
+                    this.state.selected.add(p.id);
+                }
                 this.updateLightboxUI();
                 this.renderGrid();
                 this.updateCounter();
