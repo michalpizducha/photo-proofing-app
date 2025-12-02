@@ -33,7 +33,8 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
+            // POPRAWKA CSP: Dodano "blob:" aby umożliwić dynamiczne ładowanie skryptów (np. przez niektóre frameworki/ładowacze)
+            scriptSrc: ["'self'", "'unsafe-inline'", "blob:"], 
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
@@ -168,7 +169,12 @@ const initDb = async () => {
             const initialPass = process.env.ADMIN_INITIAL_PASSWORD || 'admin123';
             const hash = await bcrypt.hash(initialPass, 10);
             await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            console.log('>>> ADMIN UTWORZONY. Hasło: ' + initialPass);
+            
+            // POPRAWKA BEZPIECZEŃSTWA: Usunięto logowanie hasła, dodano ostrzeżenie 
+            if (initialPass === 'admin123') {
+                console.warn('!!! UWAGA BEZPIECZEŃSTWA: Używasz domyślnego hasła "admin123". Ustaw silne ADMIN_INITIAL_PASSWORD w pliku .env!');
+            }
+            console.log('>>> ADMIN UTWORZONY. Dane: admin@example.com. Zmień hasło! (Hasło nie jest logowane do konsoli)');
         }
     } catch (err) {
         console.error('Błąd Init DB:', err);
@@ -252,6 +258,7 @@ app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/albums', authenticateToken, async (req, res) => {
+    // UWAGA: Wymagana dodatkowa sanitarazacja (czyszczenie) title i clientName, aby zapobiec XSS
     const { title, clientName } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
     try {
@@ -351,6 +358,8 @@ app.post('/api/select', async (req, res) => {
         await client.query('BEGIN');
         await client.query('DELETE FROM selections WHERE album_id = $1', [album.id]);
         
+        // UWAGA: Należy sprawdzić, czy photoIds zawiera ID faktycznie istniejące w danym albumie, 
+        // aby zapobiec potencjalnemu atakowi SQL Injection / nieprawidłowym danym.
         for (const pid of photoIds) {
             await client.query('INSERT INTO selections (album_id, photo_id) VALUES ($1, $2)', [album.id, pid]);
         }
@@ -376,6 +385,7 @@ app.post('/api/select', async (req, res) => {
 });
 
 app.post('/api/send-link', authenticateToken, async (req, res) => {
+    // UWAGA: Wymagana sanitarazacja link i clientEmail.
     const { clientEmail, albumTitle, link } = req.body;
     if(!clientEmail) return res.status(400).json({ error: 'Brak maila' });
 
