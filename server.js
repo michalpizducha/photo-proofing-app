@@ -22,6 +22,10 @@ requiredEnv.forEach(key => {
 });
 
 const app = express();
+// --- POPRAWKA DLA RENDER (Trust Proxy) ---
+// To naprawia błąd "ValidationError: The 'X-Forwarded-For' header is set..."
+app.set('trust proxy', 1); 
+
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE_THIS_IN_PROD';
 
