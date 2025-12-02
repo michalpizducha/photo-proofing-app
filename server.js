@@ -141,12 +141,15 @@ app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. Tworzenie albumu
+// 2. Tworzenie albumu (POPRAWIONE - zapisuje client_email)
 app.post('/api/albums', authenticateToken, async (req, res) => {
-    const { title, clientName } = req.body;
+    const { title, clientName, clientEmail } = req.body; // DODANO clientEmail
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
     try {
-        const result = await pool.query('INSERT INTO albums (user_id, title, client_name, access_token) VALUES ($1, $2, $3, $4) RETURNING *', [req.user.id, title, clientName, token]);
+        const result = await pool.query(
+            'INSERT INTO albums (user_id, title, client_name, client_email, access_token) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+            [req.user.id, title, clientName, clientEmail || null, token]
+        );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -213,13 +216,23 @@ app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. Wysyłanie Linku do Galerii
+// 5. Wysyłanie Linku do Galerii (POPRAWIONE - zapisuje email w bazie)
 app.post('/api/send-link', authenticateToken, async (req, res) => {
     const { clientEmail, albumTitle, link } = req.body;
     if (!clientEmail || !link) return res.status(400).json({ error: 'Brak danych' });
+    
     try {
         const sender = process.env.EMAIL_USER;
         if (!sender) return res.status(500).json({error: 'Brak EMAIL_USER'});
+
+        // Aktualizuj album z emailem klienta (jeśli nie był zapisany)
+        const tokenMatch = link.match(/\/gallery\/([a-z0-9]+)/);
+        if (tokenMatch) {
+            await pool.query(
+                'UPDATE albums SET client_email = $1 WHERE access_token = $2 AND client_email IS NULL',
+                [clientEmail, tokenMatch[1]]
+            );
+        }
 
         await transporter.sendMail({
             from: `Julia Berlik Foto <${sender}>`,
@@ -242,7 +255,7 @@ app.post('/api/send-link', authenticateToken, async (req, res) => {
                         <li>Możesz przeglądać zdjęcia w trybie pełnoekranowym</li>
                         <li>Po zakończeniu wyboru kliknij "Zatwierdź Wybór"</li>
                     </ul>
-                    <p style="color:#999; font-size:12px; margin-top:30px; border-top:1px solid #eee; padding-top:20px;">Link: ${link}</p>
+                    <p style="color:#999; font-size:12px; margin-top:30px; border-top:1px solid #eee; padding-top:20px;">Zapisz ten link, aby wrócić do galerii: ${link}</p>
                 </div>
             `
         });
@@ -378,23 +391,20 @@ app.post('/api/send-delivery', authenticateToken, async (req, res) => {
     }
 });
 
-// 10. WYSZUKIWANIE SESJI KLIENTA (NOWA FUNKCJA)
+// 10. WYSZUKIWANIE SESJI KLIENTA (POPRAWIONE)
 app.post('/api/sessions/lookup', async (req, res) => {
     const { email } = req.body;
     
     if (!email) return res.status(400).json({ error: 'Brak adresu email' });
     
     try {
-        // Uwaga: To wymaga dodania kolumny client_email w tabeli albums
-        // Albo możemy wykorzystać istniejące dane - szukamy po client_name
-        // Zakładam, że dodasz kolumnę client_email do albums
-        
-        // Jeśli masz client_email w tabeli:
+        // Szukamy po client_email (dokładne dopasowanie) LUB po fragmencie client_name
         const result = await pool.query(`
             SELECT 
                 a.id,
                 a.title,
                 a.client_name,
+                a.client_email,
                 a.access_token,
                 a.created_at,
                 COUNT(DISTINCT p.id) as photo_count,
@@ -402,13 +412,13 @@ app.post('/api/sessions/lookup', async (req, res) => {
             FROM albums a
             LEFT JOIN photos p ON a.id = p.album_id
             LEFT JOIN selections s ON a.id = s.album_id
-            WHERE LOWER(a.client_name) LIKE LOWER($1)
+            WHERE 
+                LOWER(a.client_email) = LOWER($1)
+                OR LOWER(a.client_name) LIKE LOWER($2)
             GROUP BY a.id
             ORDER BY a.created_at DESC
-        `, [`%${email}%`]);
-        
-        // Alternatywnie, jeśli nie masz dedykowanej kolumny client_email,
-        // możesz szukać po fragmencie nazwy klienta
+            LIMIT 20
+        `, [email, `%${email.split('@')[0]}%`]);
         
         res.json(result.rows);
         
@@ -418,16 +428,65 @@ app.post('/api/sessions/lookup', async (req, res) => {
     }
 });
 
-// --- INIT ---
+// --- INIT & DATABASE MIGRATION ---
 const initDb = async () => {
     const client = await pool.connect();
     try {
-        await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-        await client.query(`CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255))`);
-        await client.query(`CREATE TABLE IF NOT EXISTS albums (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id), title VARCHAR(200), client_name VARCHAR(100), access_token VARCHAR(64) UNIQUE, created_at TIMESTAMP DEFAULT NOW())`);
-        await client.query(`CREATE TABLE IF NOT EXISTS photos (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), album_id UUID REFERENCES albums(id) ON DELETE CASCADE, proof_url TEXT, storage_id VARCHAR(100), filename VARCHAR(255))`);
-        await client.query(`CREATE TABLE IF NOT EXISTS selections (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), album_id UUID REFERENCES albums(id) ON DELETE CASCADE, photo_id UUID REFERENCES photos(id) ON DELETE CASCADE, UNIQUE(album_id, photo_id))`);
+        console.log('🔄 Inicjalizacja bazy danych...');
         
+        // Tworzenie rozszerzeń i tabel
+        await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+        
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
+                email VARCHAR(255) UNIQUE, 
+                password_hash VARCHAR(255)
+            )
+        `);
+        
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS albums (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
+                user_id UUID REFERENCES users(id), 
+                title VARCHAR(200), 
+                client_name VARCHAR(100), 
+                access_token VARCHAR(64) UNIQUE, 
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        
+        // MIGRACJA: Dodaj kolumnę client_email jeśli nie istnieje
+        try {
+            await client.query(`
+                ALTER TABLE albums 
+                ADD COLUMN IF NOT EXISTS client_email VARCHAR(255)
+            `);
+            console.log('✅ Kolumna client_email dodana/istnieje');
+        } catch (e) {
+            console.log('ℹ️ Kolumna client_email już istnieje lub błąd migracji:', e.message);
+        }
+        
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS photos (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
+                album_id UUID REFERENCES albums(id) ON DELETE CASCADE, 
+                proof_url TEXT, 
+                storage_id VARCHAR(100), 
+                filename VARCHAR(255)
+            )
+        `);
+        
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS selections (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
+                album_id UUID REFERENCES albums(id) ON DELETE CASCADE, 
+                photo_id UUID REFERENCES photos(id) ON DELETE CASCADE, 
+                UNIQUE(album_id, photo_id)
+            )
+        `);
+        
+        // Tworzenie domyślnego admina
         const admin = await client.query('SELECT * FROM users LIMIT 1');
         if (admin.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
@@ -449,6 +508,7 @@ initDb().then(() => {
     app.listen(PORT, () => {
         console.log(`\n🚀 Server uruchomiony na porcie ${PORT}`);
         console.log(`📸 Julia Berlik Foto - System Proofingu`);
-        console.log(`🌐 ${process.env.APP_URL || 'http://localhost:' + PORT}\n`);
+        console.log(`🌐 ${process.env.APP_URL || 'http://localhost:' + PORT}`);
+        console.log(`🔑 Login: admin@example.com / admin123\n`);
     });
 });
