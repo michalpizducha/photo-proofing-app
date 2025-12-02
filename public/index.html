@@ -115,14 +115,10 @@
         };
 
         const app = {
-            // POPRAWKA UX: Dodano MAX_SELECTION
             state: { selected: new Set(), currentAlbumToken: null, photos: [], currentPhotoIndex: 0, viewFilter: 'all', MAX_SELECTION: 50 },
 
             async init() {
-                // PRZENIESIONA OBSŁUGA ZDARZEŃ (Eliminacja błędów CSP)
                 this.setupEventListeners();
-
-                // ROUTING
                 const path = window.location.pathname;
                 if (path.startsWith('/gallery/')) {
                     const token = path.split('/')[2];
@@ -137,27 +133,18 @@
             },
 
             setupEventListeners() {
-                // Obsługa formularzy
                 document.getElementById('login-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.login(); });
                 document.getElementById('upload-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.createAlbum(); });
-
-                // Obsługa przycisków Dashboard
                 document.getElementById('btn-new-session')?.addEventListener('click', () => router.go('upload'));
                 document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
                 document.getElementById('btn-upload-back')?.addEventListener('click', () => router.go('dashboard'));
-                
-                // Obsługa przycisków Galerii i Filtrowania
                 document.getElementById('saveBtn')?.addEventListener('click', () => this.saveSelection());
                 document.getElementById('filter-all')?.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
                 document.getElementById('filter-selected')?.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
-                
-                // Obsługa Lightbox
                 document.getElementById('lb-close')?.addEventListener('click', () => this.closeLightbox());
                 document.getElementById('lb-prev')?.addEventListener('click', () => this.prevPhoto());
                 document.getElementById('lb-next')?.addEventListener('click', () => this.nextPhoto());
                 document.getElementById('lb-select-btn')?.addEventListener('click', () => this.toggleSelectionFromLightbox());
-                
-                // Obsługa kliknięć na siatce zdjęć (delegacja)
                 document.getElementById('grid')?.addEventListener('click', (e) => {
                     const card = e.target.closest('.photo-card');
                     if (card) {
@@ -169,8 +156,6 @@
                         }
                     }
                 });
-
-                // Obsługa klawiszy Lightboxa
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('lightbox').classList.contains('active')) return;
                     if (e.key === 'ArrowLeft') this.prevPhoto();
@@ -178,8 +163,6 @@
                     if (e.key === 'Escape') this.closeLightbox();
                     if (e.key === ' ') { e.preventDefault(); this.toggleSelectionFromLightbox(); }
                 });
-                
-                // Blokada prawego przycisku myszy (choć CSP tego nie wymaga, UX jest zachowany)
                 document.body.addEventListener('contextmenu', (e) => e.preventDefault());
             },
 
@@ -188,6 +171,8 @@
                 const text = document.getElementById('toast-text');
                 text.innerText = message;
                 toast.classList.add('active');
+                if (type === 'error') toast.style.background = '#ef4444';
+                else toast.style.background = '#1a1a1a';
                 setTimeout(() => { toast.classList.remove('active'); }, 3500);
             },
 
@@ -218,12 +203,10 @@
                     const res = await fetch(API + '/admin/albums', { credentials: 'include' });
                     const albums = await res.json();
                     const container = document.getElementById('albums-list');
-                    
                     if(albums.length === 0) {
                         container.innerHTML = '<p style="text-align:center; color:#888;">Brak albumów.</p>';
                         return;
                     }
-
                     container.innerHTML = albums.map(a => `
                         <div style="background:white; padding:20px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                             <div>
@@ -237,15 +220,12 @@
                             </div>
                         </div>
                     `).join('');
-
-                    // Dynamiczne event listeners dla listy albumów
                     document.querySelectorAll('.btn-copy-filenames').forEach(btn => {
                         btn.addEventListener('click', () => this.copyFilenames(btn.dataset.albumId));
                     });
                     document.querySelectorAll('.btn-delete-album').forEach(btn => {
                         btn.addEventListener('click', () => this.deleteAlbum(btn.dataset.albumId));
                     });
-
                 } catch (err) { console.error(err); }
             },
 
@@ -281,34 +261,27 @@
                 const files = Array.from(filesInput.files);
 
                 if(files.length === 0) return this.showToast('Wybierz zdjęcia', 'error');
-
                 btn.disabled = true; btn.innerText = "Przetwarzanie...";
                 
                 try {
-                    // 1. Tworzenie Albumu
                     const res1 = await fetch(API + '/albums', { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify({ title, clientName }),
                         credentials: 'include'
                     });
-                    
                     if(!res1.ok) throw new Error('Błąd tworzenia albumu');
                     const albumData = await res1.json();
                     const albumId = albumData.id;
                     const accessToken = albumData.access_token;
 
-                    // 2. Batch Upload
                     const BATCH_SIZE = 3;
                     let uploaded = 0;
-
                     for (let i = 0; i < files.length; i += BATCH_SIZE) {
                         const chunk = files.slice(i, i + BATCH_SIZE);
                         const formData = new FormData();
                         formData.append('albumId', albumId);
                         chunk.forEach(f => formData.append('photos', f));
-
-                        // Pasek postępu
                         const progress = Math.round((uploaded / files.length) * 100);
                         statusDiv.innerHTML = `
                             <div style="margin-top:10px;">
@@ -317,29 +290,28 @@
                                     <div style="width:${progress}%; height:100%; background:var(--accent); transition:width 0.3s;"></div>
                                 </div>
                             </div>`;
-
-                        const resUpload = await fetch(API + '/upload', { 
-                            method: 'POST', 
-                            body: formData,
-                            credentials: 'include'
-                        });
-
+                        const resUpload = await fetch(API + '/upload', { method: 'POST', body: formData, credentials: 'include' });
                         if(!resUpload.ok) throw new Error('Błąd wysyłania partii zdjęć');
                         uploaded += chunk.length;
                     }
 
-                    // 3. Koniec
-                    statusDiv.innerHTML = "Wysyłanie zakończone sukcesem!";
+                    statusDiv.innerHTML = "Wysyłanie plików zakończone!";
                     
                     if (clientEmail) {
                         statusDiv.innerText += " Wysyłanie maila...";
                         const link = window.location.origin + '/gallery/' + accessToken;
-                        await fetch(API + '/send-link', { 
+                        const resMail = await fetch(API + '/send-link', { 
                             method: 'POST', 
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ clientEmail, albumTitle: title, link }),
                             credentials: 'include'
                         });
+
+                        // POPRAWKA: Sprawdzamy czy mail faktycznie wyszedł
+                        if (!resMail.ok) {
+                            const errData = await resMail.json();
+                            throw new Error('Błąd wysyłki maila: ' + (errData.error || 'Nieznany błąd'));
+                        }
                         this.showToast('Wysłano do klienta!', 'success');
                     } else { 
                         this.showToast('Gotowe!', 'success'); 
@@ -348,7 +320,8 @@
 
                 } catch (err) { 
                     statusDiv.innerText = "Błąd: " + err.message;
-                    this.showToast('Błąd uploadu', 'error'); 
+                    this.showToast('Wystąpił błąd!', 'error'); 
+                    console.error(err);
                 } finally { 
                     btn.disabled = false; btn.innerText = "Rozpocznij Upload"; 
                 }
@@ -359,18 +332,15 @@
                 router.go('gallery');
                 const grid = document.getElementById('grid');
                 grid.innerHTML = Array(8).fill('<div class="photo-card skeleton"></div>').join('');
-
                 try {
                     const res = await fetch(API + '/gallery/' + token); 
                     if(!res.ok) throw new Error('Błąd');
                     const data = await res.json();
-                    
                     document.getElementById('gallery-title').innerText = data.album[0].title;
                     this.state.selected = new Set(data.selections);
                     this.state.photos = data.photos;
                     this.renderGrid();
                     this.updateCounter();
-
                     if(!localStorage.getItem('visited_' + token)) {
                         this.showToast('Witaj! Wybierz zdjęcia klikając serce.', 'success');
                         localStorage.setItem('visited_' + token, 'true');
@@ -390,26 +360,19 @@
             renderGrid() {
                 const grid = document.getElementById('grid');
                 let photosToShow = this.state.photos;
-
                 if (this.state.viewFilter === 'selected') {
                     photosToShow = this.state.photos.filter(p => this.state.selected.has(p.id));
                 }
-
                 if (photosToShow.length === 0) {
                     grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:40px; color:#888;">Brak zdjęć do wyświetlenia.</p>';
                     return;
                 }
-
-                // Dodano data-index i usunięto inline onclick/stopPropagation
                 grid.innerHTML = photosToShow.map((p) => {
                     const originalIndex = this.state.photos.findIndex(photo => photo.id === p.id);
                     const isSelected = this.state.selected.has(p.id) ? 'selected' : '';
-                    
                     return `
                     <div class="photo-card ${isSelected}" data-index="${originalIndex}">
-                        <div class="heart-icon">
-                            ${isSelected ? '❤' : '♡'}
-                        </div>
+                        <div class="heart-icon">${isSelected ? '❤' : '♡'}</div>
                         <img src="${p.proof_url}" loading="lazy" alt="Zdjęcie" onerror="this.src='placeholder.jpg'">
                     </div>`;
                 }).join('');
@@ -419,17 +382,14 @@
                 const p = this.state.photos[index];
                 if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
                 else {
-                    // POPRAWKA UX: Sprawdzenie limitu wybranych zdjęć
                     if(this.state.selected.size >= this.state.MAX_SELECTION) {
                         this.showToast(`Możesz wybrać maksymalnie ${this.state.MAX_SELECTION} zdjęć.`, 'error');
                         return;
                     }
-                    
                     this.state.selected.add(p.id);
                     if(navigator.vibrate) navigator.vibrate(50);
                 }
-                this.renderGrid(); 
-                this.updateCounter();
+                this.renderGrid(); this.updateCounter();
             },
 
             openLightbox(index) {
@@ -440,7 +400,6 @@
                 this.updateLightboxUI();
             },
             closeLightbox() { document.getElementById('lightbox').classList.remove('active'); },
-            
             nextPhoto() { if (this.state.currentPhotoIndex < this.state.photos.length - 1) this.openLightbox(this.state.currentPhotoIndex + 1); },
             prevPhoto() { if (this.state.currentPhotoIndex > 0) this.openLightbox(this.state.currentPhotoIndex - 1); },
 
@@ -448,30 +407,24 @@
                 const p = this.state.photos[this.state.currentPhotoIndex];
                 if (this.state.selected.has(p.id)) this.state.selected.delete(p.id);
                 else {
-                    // POPRAWKA UX: Sprawdzenie limitu wybranych zdjęć w lightboxie
                     if(this.state.selected.size >= this.state.MAX_SELECTION) {
                         this.showToast(`Możesz wybrać maksymalnie ${this.state.MAX_SELECTION} zdjęć.`, 'error');
                         return;
                     }
                     this.state.selected.add(p.id);
                 }
-                this.updateLightboxUI();
-                this.renderGrid();
-                this.updateCounter();
+                this.updateLightboxUI(); this.renderGrid(); this.updateCounter();
             },
 
             updateLightboxUI() {
                 const p = this.state.photos[this.state.currentPhotoIndex];
                 const btn = document.getElementById('lb-select-btn');
                 if (this.state.selected.has(p.id)) {
-                    btn.classList.add('active');
-                    btn.innerText = "❤ WYBRANE";
+                    btn.classList.add('active'); btn.innerText = "❤ WYBRANE";
                 } else {
-                    btn.classList.remove('active');
-                    btn.innerText = "Wybierz zdjęcie";
+                    btn.classList.remove('active'); btn.innerText = "Wybierz zdjęcie";
                 }
             },
-
             updateCounter() { document.getElementById('selection-count').innerText = `${this.state.selected.size} wybranych`; },
 
             async saveSelection() {
