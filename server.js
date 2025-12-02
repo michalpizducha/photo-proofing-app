@@ -33,12 +33,13 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            // POPRAWKA CSP: Dodano "blob:" aby umożliwić dynamiczne ładowanie skryptów (np. przez niektóre frameworki/ładowacze)
+            // POPRAWKA CSP (wcześniejsza): Dodano "blob:"
             scriptSrc: ["'self'", "'unsafe-inline'", "blob:"], 
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-            connectSrc: ["'self'"],
+            // NOWA POPRAWKA CSP: Dodano Google Analytics do connect-src
+            connectSrc: ["'self'", "https://www.google-analytics.com"], 
             frameSrc: ["'none'"],
             objectSrc: ["'none'"]
         },
