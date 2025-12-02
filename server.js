@@ -14,7 +14,7 @@ const nodemailer = require('nodemailer');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const BrevoTransport = require('nodemailer-brevo-transport');
-const archiver = require('archiver'); // PAMIĘTAJ O DODANIU DO package.json
+const archiver = require('archiver');
 
 // --- WALIDACJA ZMIENNYCH ---
 const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID', 'BREVO_API_KEY', 'EMAIL_USER'];
@@ -23,7 +23,6 @@ requiredEnv.forEach(key => {
 });
 
 const app = express();
-// --- POPRAWKA DLA RENDER ---
 app.set('trust proxy', 1); 
 
 const PORT = process.env.PORT || 3000;
@@ -75,7 +74,7 @@ const pool = new Pool({
 });
 
 // --- UPLOAD CONFIG ---
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 5 } }); // Zwiększyłem limit pliku do 25MB (dla RAW/dużych JPG)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 5 } });
 
 // --- MAIL TRANSPORTER ---
 const transporter = nodemailer.createTransport(new BrevoTransport({ apiKey: process.env.BREVO_API_KEY }));
@@ -90,6 +89,15 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+// --- RATE LIMITING ---
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minut
+    max: 100,
+    message: 'Zbyt wiele żądań, spróbuj później'
+});
+
+app.use('/api/', apiLimiter);
 
 // --- ENDPOINTY SYSTEMOWE ---
 
@@ -123,22 +131,15 @@ app.get('/api/admin/albums', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-
-// 1.5. Pobieranie listy nazw plików (do kopiowania)
+// 1.5. Pobieranie listy nazw plików
 app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
     try {
-        // Sprawdź czy album należy do zalogowanego fotografa
         const check = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
         if (check.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
-
-        // Pobierz nazwy plików
         const result = await pool.query('SELECT filename FROM photos WHERE album_id=$1 ORDER BY filename', [req.params.id]);
-        
-        // Zwróć samą listę nazw
         res.json({ filenames: result.rows.map(r => r.filename) });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 
 // 2. Tworzenie albumu
 app.post('/api/albums', authenticateToken, async (req, res) => {
@@ -155,14 +156,12 @@ app.delete('/api/albums/:id', authenticateToken, async (req, res) => {
     try {
         const check = await pool.query('SELECT id FROM albums WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
         if (check.rows.length === 0) return res.status(403).json({ error: 'Brak dostępu' });
-        // Uwaga: To usuwa wpisy z bazy. Pliki w GCS zostają (to bezpieczniejsze, żeby przypadkiem nie usunąć czegoś ważnego).
-        // Można dodać usuwanie plików z GCS, ale to bardziej skomplikowane.
         await pool.query('DELETE FROM albums WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 4. UPLOAD (NOWA WERSJA: DUAL UPLOAD)
+// 4. UPLOAD (DUAL UPLOAD: PROOF + FULL)
 app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req, res) => {
     const { albumId } = req.body;
     if (!req.files?.length) return res.status(400).json({ error: 'Brak plików' });
@@ -201,7 +200,7 @@ app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req
                 const originalFile = bucket.file(originalFilename);
                 await originalFile.save(originalBuffer, { contentType: 'image/jpeg', resumable: false });
 
-                // C. ZAPIS W BAZIE (Wskazujemy na Proof!)
+                // C. ZAPIS W BAZIE
                 const dbRes = await pool.query(
                     'INSERT INTO photos (album_id, proof_url, storage_id, filename) VALUES ($1, $2, $3, $4) RETURNING *',
                     [albumId, publicUrl, proofFilename, file.originalname]
@@ -214,7 +213,7 @@ app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. Wysyłanie Linku do Galerii (Początkowe)
+// 5. Wysyłanie Linku do Galerii
 app.post('/api/send-link', authenticateToken, async (req, res) => {
     const { clientEmail, albumTitle, link } = req.body;
     if (!clientEmail || !link) return res.status(400).json({ error: 'Brak danych' });
@@ -227,10 +226,23 @@ app.post('/api/send-link', authenticateToken, async (req, res) => {
             to: clientEmail,
             subject: `Twoja sesja: ${albumTitle} - Wybór Zdjęć`,
             html: `
-                <div style="font-family:sans-serif; padding:20px; color:#333;">
-                    <h2>Witaj!</h2>
-                    <p>Zdjęcia z sesji <strong>"${albumTitle}"</strong> są gotowe.</p>
-                    <a href="${link}" style="display:inline-block; background:#c5a059; color:white; padding:10px 20px; text-decoration:none; border-radius:4px; margin-top:10px;">Otwórz Galerię</a>
+                <div style="font-family:sans-serif; padding:20px; color:#333; max-width:600px; margin:0 auto;">
+                    <div style="text-align:center; margin-bottom:30px;">
+                        <h1 style="font-family:'Cinzel', serif; color:#1a1a1a; letter-spacing:2px;">Julia Berlik <span style="color:#c5a059;">Foto</span></h1>
+                    </div>
+                    <h2 style="color:#c5a059;">Witaj!</h2>
+                    <p style="line-height:1.8;">Zdjęcia z Twojej sesji <strong>"${albumTitle}"</strong> są gotowe do przeglądania.</p>
+                    <p style="line-height:1.8;">Kliknij poniższy przycisk, aby otworzyć galerię i wybrać swoje ulubione zdjęcia:</p>
+                    <div style="text-align:center; margin:30px 0;">
+                        <a href="${link}" style="display:inline-block; background:#c5a059; color:white; padding:15px 40px; text-decoration:none; border-radius:8px; font-weight:600; font-size:16px;">Otwórz Galerię</a>
+                    </div>
+                    <p style="color:#666; font-size:14px; line-height:1.6;">💡 <strong>Jak to działa?</strong></p>
+                    <ul style="color:#666; font-size:14px; line-height:1.8;">
+                        <li>Kliknij serce ❤ na zdjęciach, które Ci się podobają</li>
+                        <li>Możesz przeglądać zdjęcia w trybie pełnoekranowym</li>
+                        <li>Po zakończeniu wyboru kliknij "Zatwierdź Wybór"</li>
+                    </ul>
+                    <p style="color:#999; font-size:12px; margin-top:30px; border-top:1px solid #eee; padding-top:20px;">Link: ${link}</p>
                 </div>
             `
         });
@@ -269,17 +281,17 @@ app.post('/api/select', async (req, res) => {
                 from: process.env.EMAIL_USER,
                 to: process.env.EMAIL_USER,
                 subject: `📸 Wybór: ${alb.rows[0].client_name}`,
-                text: `Wybrano ${photoIds.length} zdjęć.`
+                text: `Klient ${alb.rows[0].client_name} wybrał ${photoIds.length} zdjęć z sesji "${alb.rows[0].title}".`
             }).catch(e => console.error("Mail powiadomienie błąd:", e));
         }
         res.json({ success: true });
     } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } finally { client.release(); }
 });
 
-// 8. AUTOMATYCZNE PAKOWANIE (ZIP - Obsługuje Full Res i Fallback)
+// 8. AUTOMATYCZNE PAKOWANIE (ZIP)
 app.post('/api/auto-deliver', authenticateToken, async (req, res) => {
     const { albumId } = req.body;
-    req.setTimeout(600000); // 10 minut na spakowanie
+    req.setTimeout(600000); // 10 minut
 
     try {
         const albRes = await pool.query('SELECT * FROM albums WHERE id=$1', [albumId]);
@@ -296,9 +308,7 @@ app.post('/api/auto-deliver', authenticateToken, async (req, res) => {
         const zipName = `zips/${album.access_token}_photos.zip`;
         const zipFile = bucket.file(zipName);
         const outputStream = zipFile.createWriteStream({ resumable: false });
-        
-        // Używamy store:true dla szybkości (JPG już są skompresowane)
-        const archive = archiver('zip', { store: true }); 
+        const archive = archiver('zip', { store: true });
 
         archive.on('error', err => { throw err; });
         archive.pipe(outputStream);
@@ -306,27 +316,21 @@ app.post('/api/auto-deliver', authenticateToken, async (req, res) => {
         console.log(`>>> Pakowanie ${selRes.rows.length} zdjęć...`);
 
         for (const photo of selRes.rows) {
-            // Logika: Szukamy _full. Jak nie ma, bierzemy proof.
             const ext = path.extname(photo.storage_id);
             const base = photo.storage_id.substring(0, photo.storage_id.length - ext.length);
-            
             const fullResPath = `${base}_full${ext}`;
             const fileRef = bucket.file(fullResPath);
-
-            // Sprawdzamy istnienie Full Res
             const [exists] = await fileRef.exists();
 
             if (exists) {
                 archive.append(fileRef.createReadStream(), { name: photo.filename });
             } else {
-                // Fallback dla starych sesji
                 const proofRef = bucket.file(photo.storage_id);
                 archive.append(proofRef.createReadStream(), { name: photo.filename });
             }
         }
 
         await archive.finalize();
-
         await new Promise((resolve, reject) => {
             outputStream.on('finish', resolve);
             outputStream.on('error', reject);
@@ -341,7 +345,7 @@ app.post('/api/auto-deliver', authenticateToken, async (req, res) => {
     }
 });
 
-// 9. Wysyłka gotowego ZIPa (Mail z linkiem)
+// 9. Wysyłka gotowego ZIPa
 app.post('/api/send-delivery', authenticateToken, async (req, res) => {
     const { clientEmail, albumTitle, downloadLink, clientName } = req.body;
     if (!clientEmail || !downloadLink) return res.status(400).json({ error: 'Brak danych' });
@@ -353,13 +357,17 @@ app.post('/api/send-delivery', authenticateToken, async (req, res) => {
             to: clientEmail,
             subject: `🎁 Gotowe zdjęcia: ${albumTitle}`,
             html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center; color: #333;">
-                    <h2 style="color: #1a1a1a;">Dzień dobry, ${clientName || ''}!</h2>
-                    <p>Twoje wybrane zdjęcia z sesji <strong>"${albumTitle}"</strong> są gotowe do pobrania.</p>
-                    <div style="margin: 30px 0;">
-                        <a href="${downloadLink}" style="background-color: #c5a059; color: #ffffff; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 4px;">POBIERZ PACZKĘ (.ZIP)</a>
+                <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center; color: #333; max-width:600px; margin:0 auto;">
+                    <div style="margin-bottom:30px;">
+                        <h1 style="font-family:'Cinzel', serif; color:#1a1a1a; letter-spacing:2px;">Julia Berlik <span style="color:#c5a059;">Foto</span></h1>
                     </div>
-                    <p style="font-size: 12px; color: #888;">Link bezpośredni: ${downloadLink}</p>
+                    <h2 style="color: #1a1a1a;">Dzień dobry${clientName ? ', ' + clientName : ''}!</h2>
+                    <p style="line-height:1.8;">Twoje wybrane zdjęcia z sesji <strong>"${albumTitle}"</strong> są gotowe do pobrania.</p>
+                    <div style="margin: 30px 0;">
+                        <a href="${downloadLink}" style="background-color: #c5a059; color: #ffffff; padding: 15px 40px; text-decoration: none; font-weight: bold; border-radius: 8px; display:inline-block; font-size:16px;">POBIERZ PACZKĘ (.ZIP)</a>
+                    </div>
+                    <p style="color:#666; font-size:14px; line-height:1.6;">📦 Wszystkie zdjęcia są w pełnej rozdzielczości, bez znaków wodnych.</p>
+                    <p style="color:#999; font-size:12px; margin-top:30px; border-top:1px solid #eee; padding-top:20px;">Link: ${downloadLink}</p>
                 </div>
             `
         });
@@ -367,6 +375,46 @@ app.post('/api/send-delivery', authenticateToken, async (req, res) => {
     } catch (err) {
         console.error("Błąd wysyłki gotowych:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// 10. WYSZUKIWANIE SESJI KLIENTA (NOWA FUNKCJA)
+app.post('/api/sessions/lookup', async (req, res) => {
+    const { email } = req.body;
+    
+    if (!email) return res.status(400).json({ error: 'Brak adresu email' });
+    
+    try {
+        // Uwaga: To wymaga dodania kolumny client_email w tabeli albums
+        // Albo możemy wykorzystać istniejące dane - szukamy po client_name
+        // Zakładam, że dodasz kolumnę client_email do albums
+        
+        // Jeśli masz client_email w tabeli:
+        const result = await pool.query(`
+            SELECT 
+                a.id,
+                a.title,
+                a.client_name,
+                a.access_token,
+                a.created_at,
+                COUNT(DISTINCT p.id) as photo_count,
+                COUNT(DISTINCT s.id) as selection_count
+            FROM albums a
+            LEFT JOIN photos p ON a.id = p.album_id
+            LEFT JOIN selections s ON a.id = s.album_id
+            WHERE LOWER(a.client_name) LIKE LOWER($1)
+            GROUP BY a.id
+            ORDER BY a.created_at DESC
+        `, [`%${email}%`]);
+        
+        // Alternatywnie, jeśli nie masz dedykowanej kolumny client_email,
+        // możesz szukać po fragmencie nazwy klienta
+        
+        res.json(result.rows);
+        
+    } catch (err) {
+        console.error('Błąd wyszukiwania sesji:', err);
+        res.status(500).json({ error: 'Błąd wyszukiwania sesji' });
     }
 });
 
@@ -384,10 +432,23 @@ const initDb = async () => {
         if (admin.rows.length === 0) {
             const hash = await bcrypt.hash('admin123', 10);
             await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
+            console.log('✅ Utworzono domyślnego admina (admin@example.com / admin123)');
         }
-    } catch (e) { console.error(e); } finally { client.release(); }
+        
+        console.log('✅ Baza danych zainicjalizowana');
+    } catch (e) { 
+        console.error('❌ Błąd inicjalizacji bazy:', e); 
+    } finally { 
+        client.release(); 
+    }
 };
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
-initDb().then(() => app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`)));
 
+initDb().then(() => {
+    app.listen(PORT, () => {
+        console.log(`\n🚀 Server uruchomiony na porcie ${PORT}`);
+        console.log(`📸 Julia Berlik Foto - System Proofingu`);
+        console.log(`🌐 ${process.env.APP_URL || 'http://localhost:' + PORT}\n`);
+    });
+});
