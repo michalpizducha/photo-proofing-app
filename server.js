@@ -17,7 +17,7 @@ const BrevoTransport = require('nodemailer-brevo-transport');
 const archiver = require('archiver');
 
 // --- WALIDACJA ZMIENNYCH ---
-const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID', 'BREVO_API_KEY', 'EMAIL_USER'];
+const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'GCS_BUCKET_NAME', 'GCS_PROJECT_ID', 'BREVO_API_KEY', 'EMAIL_USER', 'ADMIN_EMAIL', 'ADMIN_PASSWORD'];
 requiredEnv.forEach(key => {
     if (!process.env[key]) console.warn(`⚠️ UWAGA: Brak zmiennej ${key}`);
 });
@@ -141,9 +141,9 @@ app.get('/api/admin/albums/:id/files', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. Tworzenie albumu (POPRAWIONE - zapisuje client_email)
+// 2. Tworzenie albumu
 app.post('/api/albums', authenticateToken, async (req, res) => {
-    const { title, clientName, clientEmail } = req.body; // DODANO clientEmail
+    const { title, clientName, clientEmail } = req.body;
     const token = uuidv4().replace(/-/g, '').substring(0, 16);
     try {
         const result = await pool.query(
@@ -216,7 +216,7 @@ app.post('/api/upload', authenticateToken, upload.array('photos', 5), async (req
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. Wysyłanie Linku do Galerii (POPRAWIONE - zapisuje email w bazie)
+// 5. Wysyłanie Linku do Galerii
 app.post('/api/send-link', authenticateToken, async (req, res) => {
     const { clientEmail, albumTitle, link } = req.body;
     if (!clientEmail || !link) return res.status(400).json({ error: 'Brak danych' });
@@ -391,14 +391,13 @@ app.post('/api/send-delivery', authenticateToken, async (req, res) => {
     }
 });
 
-// 10. WYSZUKIWANIE SESJI KLIENTA (POPRAWIONE)
+// 10. WYSZUKIWANIE SESJI KLIENTA
 app.post('/api/sessions/lookup', async (req, res) => {
     const { email } = req.body;
     
     if (!email) return res.status(400).json({ error: 'Brak adresu email' });
     
     try {
-        // Szukamy po client_email (dokładne dopasowanie) LUB po fragmencie client_name
         const result = await pool.query(`
             SELECT 
                 a.id,
@@ -486,12 +485,24 @@ const initDb = async () => {
             )
         `);
         
-        // Tworzenie domyślnego admina
-        const admin = await client.query('SELECT * FROM users LIMIT 1');
-        if (admin.rows.length === 0) {
-            const hash = await bcrypt.hash('admin123', 10);
-            await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', ['admin@example.com', hash]);
-            console.log('✅ Utworzono domyślnego admina (admin@example.com / admin123)');
+        // 🔐 TWORZENIE KONTA FOTOGRAFA Z ZMIENNYCH ŚRODOWISKOWYCH
+        if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+            const existingUser = await client.query('SELECT * FROM users WHERE email = $1', [process.env.ADMIN_EMAIL]);
+            
+            if (existingUser.rows.length === 0) {
+                // Utwórz nowe konto
+                const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+                await client.query('INSERT INTO users (email, password_hash) VALUES ($1, $2)', [process.env.ADMIN_EMAIL, hash]);
+                console.log(`✅ Utworzono konto fotografa: ${process.env.ADMIN_EMAIL}`);
+            } else {
+                // Zaktualizuj hasło jeśli użytkownik już istnieje
+                const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+                await client.query('UPDATE users SET password_hash = $1 WHERE email = $2', [hash, process.env.ADMIN_EMAIL]);
+                console.log(`✅ Zaktualizowano hasło dla: ${process.env.ADMIN_EMAIL}`);
+            }
+        } else {
+            console.warn('⚠️ UWAGA: Brak ADMIN_EMAIL i ADMIN_PASSWORD w zmiennych środowiskowych!');
+            console.warn('⚠️ Dodaj te zmienne, aby móc się zalogować do panelu fotografa.');
         }
         
         console.log('✅ Baza danych zainicjalizowana');
@@ -509,6 +520,9 @@ initDb().then(() => {
         console.log(`\n🚀 Server uruchomiony na porcie ${PORT}`);
         console.log(`📸 Julia Berlik Foto - System Proofingu`);
         console.log(`🌐 ${process.env.APP_URL || 'http://localhost:' + PORT}`);
-        console.log(`🔑 Login: admin@example.com / admin123\n`);
+        if (process.env.ADMIN_EMAIL) {
+            console.log(`🔐 Login: ${process.env.ADMIN_EMAIL}`);
+        }
+        console.log('');
     });
 });
